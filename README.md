@@ -49,7 +49,8 @@ ocsm                  # interactive session picker (default)
 ocsm list             # list recent sessions
 ocsm select           # interactive session picker with search
 ocsm resume <id>      # resume a session
-ocsm export <id>      # export session
+ocsm export <id>      # export session (JSON, bundle, markdown, text)
+ocsm import <file>    # import session from JSON or bundle
 ocsm backup --all     # backup all sessions
 ocsm lang             # switch language
 ocsm help             # show help
@@ -65,7 +66,8 @@ Available in OpenCode for the AI to call:
 | `session_search` | Search session content |
 | `session_switch` | Switch to a session |
 | `session_info` | Get session details |
-| `session_export` | Export session as JSON |
+| `session_export` | Export session as JSON or bundle |
+| `session_import` | Import session from JSON file |
 | `session_backup` | Backup sessions |
 
 ### Examples

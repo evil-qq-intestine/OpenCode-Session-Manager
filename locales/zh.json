@@ -5,6 +5,7 @@
     "select": "交互式选择会话",
     "resume": "继续指定会话",
     "exportCmd": "导出会话",
+    "importCmd": "导入会话",
     "backup": "备份会话",
     "exit": "退出",
     "back": "返回"
@@ -17,7 +18,9 @@
     "selectExportFormat": "选择导出格式:",
     "enterSessionId": "请输入会话 ID:",
     "noSessionsFound": "没有找到会话",
-    "noResultsFound": "没有找到匹配的结果"
+    "noResultsFound": "没有找到匹配的结果",
+    "confirmImport": "确定要导入此会话吗?",
+    "importPreview": "导入预览:"
   },
   "results": {
     "sessionList": "会话列表",
@@ -25,6 +28,8 @@
     "sessionNotFound": "会话 {id} 不存在",
     "exportSuccess": "会话已导出到: {path}",
     "exportFailed": "导出会话失败",
+    "importSuccess": "会话导入成功，新 ID: {id}",
+    "importFailed": "导入会话失败",
     "backupSuccess": "备份完成: {path}\n包含 {count} 个会话",
     "backupFailed": "备份失败",
     "launchSuccess": "启动 OpenCode 并继续会话: {title}",
@@ -49,13 +54,16 @@
     "sessionSearchDesc": "搜索会话内容，支持标题和消息内容搜索",
     "sessionSwitchDesc": "切换到指定会话",
     "sessionInfoDesc": "获取会话详细信息",
-    "sessionExportDesc": "导出会话为 JSON 格式",
+    "sessionExportDesc": "导出会话为 JSON 或 Bundle 格式",
+    "sessionImportDesc": "从 JSON 或 Bundle 文件导入会话",
     "sessionBackupDesc": "备份会话",
     "limitParam": "返回的会话数量，默认20",
     "searchParam": "搜索关键词",
     "sessionIdParam": "目标会话 ID",
     "forkParam": "是否创建分支，默认 false",
     "outputPathParam": "输出文件路径",
+    "filePathParam": "导入文件路径",
+    "formatParam": "导出格式: json 或 bundle",
     "allParam": "备份所有会话"
   },
   "errors": {
@@ -64,12 +72,18 @@
     "sessionNotExist": "会话 {id} 不存在",
     "invalidSessionId": "请提供有效的会话 ID",
     "exportFailed": "导出会话失败",
+    "importFailed": "导入会话失败",
+    "importFileNotFound": "导入文件不存在: {path}",
+    "importInvalidJson": "无效的 JSON 文件",
+    "importMissingSession": "JSON 文件缺少会话数据",
+    "importNotGitRepo": "会话目录不是 Git 仓库，无法使用 bundle 格式导出",
     "backupFailed": "备份会话失败",
     "launchFailed": "启动 OpenCode 失败",
     "unknownCommand": "未知命令: {command}"
   },
   "exportFormats": {
     "json": "JSON (完整数据)",
+    "bundle": "Bundle (代码+会话)",
     "markdown": "Markdown (可读格式)",
     "text": "纯文本"
   },

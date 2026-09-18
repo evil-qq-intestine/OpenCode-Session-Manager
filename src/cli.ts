@@ -362,11 +362,23 @@ async function exportSession(sessionId: string): Promise<void> {
       message: i18n.t('prompts.selectExportFormat'),
       choices: [
         { name: i18n.t('exportFormats.json'), value: 'json' },
+        { name: i18n.t('exportFormats.bundle'), value: 'bundle' },
         { name: i18n.t('exportFormats.markdown'), value: 'markdown' },
         { name: i18n.t('exportFormats.text'), value: 'text' },
       ],
     },
   ]);
+
+  if (format === 'bundle') {
+    try {
+      const bundlePath = await db.exportSessionBundle(sessionId, '');
+      console.log(`\n${i18n.t('results.exportSuccess', { path: bundlePath })}`);
+      console.log(`${i18n.getLanguage() === 'zh' ? '会话数据' : 'Session data'}: ${bundlePath.replace('.bundle', '.json')}`);
+    } catch (error: any) {
+      console.error(error.message);
+    }
+    return;
+  }
 
   const exportData = db.exportSession(sessionId);
   if (!exportData) {
@@ -389,6 +401,59 @@ async function exportSession(sessionId: string): Promise<void> {
 
   fs.writeFileSync(outputPath, content, 'utf-8');
   console.log(`\n${i18n.t('results.exportSuccess', { path: outputPath })}`);
+}
+
+async function importSession(filePath: string): Promise<void> {
+  if (!fs.existsSync(filePath)) {
+    console.error(i18n.t('errors.importFileNotFound', { path: filePath }));
+    return;
+  }
+
+  let data: any;
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    data = JSON.parse(content);
+  } catch {
+    console.error(i18n.t('errors.importInvalidJson'));
+    return;
+  }
+
+  if (!data.session || !data.messages) {
+    console.error(i18n.t('errors.importMissingSession'));
+    return;
+  }
+
+  const title = data.session.title || i18n.t('session.untitled');
+  const messageCount = data.messages.length;
+  const createdAt = data.session.time_created
+    ? new Date(data.session.time_created * 1000).toLocaleString()
+    : i18n.getLanguage() === 'zh' ? '未知' : 'unknown';
+
+  console.log(`\n${i18n.t('prompts.importPreview')}`);
+  console.log(`  ${i18n.t('session.title')}: ${title}`);
+  console.log(`  ${i18n.t('session.messageCount')}: ${messageCount}`);
+  console.log(`  ${i18n.t('session.createdAt')}: ${createdAt}`);
+
+  const { confirm } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'confirm',
+      message: i18n.t('prompts.confirmImport'),
+      default: true,
+    },
+  ]);
+
+  if (!confirm) {
+    console.log(i18n.getLanguage() === 'zh' ? '已取消导入' : 'Import cancelled');
+    return;
+  }
+
+  try {
+    const newId = await db.importSession(filePath);
+    console.log(`\n${i18n.t('results.importSuccess', { id: newId })}`);
+  } catch (error: any) {
+    console.error(i18n.t('errors.importFailed'), error.message);
+  }
 }
 
 function formatAsMarkdown(data: any): string {
@@ -535,6 +600,22 @@ async function main(): Promise<void> {
       }
       break;
 
+    case 'import':
+      if (!args[1]) {
+        console.error(i18n.getLanguage() === 'zh' ? '请提供导入文件路径' : 'Please provide import file path');
+        process.exit(1);
+      }
+      if (!await db.connect()) {
+        console.error(i18n.t('errors.databaseConnectionFailed'));
+        process.exit(1);
+      }
+      try {
+        await importSession(args[1]);
+      } finally {
+        db.disconnect();
+      }
+      break;
+
     case 'backup':
       await backupSessions({
         includeAll: args.includes('--all'),
@@ -562,6 +643,7 @@ ${i18n.getLanguage() === 'zh' ? '命令' : 'Commands'}:
   search                  ${i18n.getLanguage() === 'zh' ? '搜索会话' : 'Search sessions'}
   resume <session-id>     ${i18n.t('cli.resume')}
   export <session-id>     ${i18n.t('cli.exportCmd')}
+  import <file>           ${i18n.t('cli.importCmd')}
   backup [options]        ${i18n.t('cli.backup')}
   lang                    ${i18n.getLanguage() === 'zh' ? '切换语言' : 'Switch language'}
   help                    ${i18n.t('cli.help')}

@@ -226,16 +226,23 @@ export const SessionPickerPlugin = async (ctx: any) => {
         description: i18n.t('tools.sessionExportDesc'),
         args: {
           session_id: tool.schema.string().describe(i18n.t('tools.sessionIdParam')),
+          format: tool.schema.string().optional().describe(i18n.t('tools.formatParam')),
           output_path: tool.schema.string().optional().describe(i18n.t('tools.outputPathParam')),
         },
         async execute(args: any) {
-          const { session_id, output_path } = args;
+          const { session_id, format, output_path } = args;
 
           if (!await db.connect()) {
             return i18n.t('errors.databaseConnectionFailed');
           }
 
           try {
+            if (format === 'bundle') {
+              const baseName = output_path || `session-${session_id.substring(0, 8)}-${Date.now()}`;
+              const bundlePath = await db.exportSessionBundle(session_id, baseName);
+              return i18n.t('results.exportSuccess', { path: bundlePath });
+            }
+
             const exportData = db.exportSession(session_id);
             if (!exportData) {
               return i18n.t('errors.exportFailed');
@@ -248,6 +255,8 @@ export const SessionPickerPlugin = async (ctx: any) => {
 
             fs.writeFileSync(outputPath, JSON.stringify(exportData, null, 2), 'utf-8');
             return i18n.t('results.exportSuccess', { path: outputPath });
+          } catch (error: any) {
+            return i18n.t('errors.exportFailed') + ': ' + error.message;
           } finally {
             db.disconnect();
           }
@@ -298,6 +307,45 @@ export const SessionPickerPlugin = async (ctx: any) => {
 
             fs.writeFileSync(backupFile, JSON.stringify(backupData, null, 2), 'utf-8');
             return i18n.t('results.backupSuccess', { path: backupFile, count: String(backupData.sessions.length) });
+          } finally {
+            db.disconnect();
+          }
+        },
+      }),
+
+      session_import: tool({
+        description: i18n.t('tools.sessionImportDesc'),
+        args: {
+          file_path: tool.schema.string().describe(i18n.t('tools.filePathParam')),
+        },
+        async execute(args: any) {
+          const { file_path } = args;
+
+          if (!await db.connect()) {
+            return i18n.t('errors.databaseConnectionFailed');
+          }
+
+          try {
+            if (!fs.existsSync(file_path)) {
+              return i18n.t('errors.importFileNotFound', { path: file_path });
+            }
+
+            let data: any;
+            try {
+              const content = fs.readFileSync(file_path, 'utf-8');
+              data = JSON.parse(content);
+            } catch {
+              return i18n.t('errors.importInvalidJson');
+            }
+
+            if (!data.session || !data.messages) {
+              return i18n.t('errors.importMissingSession');
+            }
+
+            const newId = await db.importSession(file_path);
+            return i18n.t('results.importSuccess', { id: newId });
+          } catch (error: any) {
+            return i18n.t('errors.importFailed') + ': ' + error.message;
           } finally {
             db.disconnect();
           }
