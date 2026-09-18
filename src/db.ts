@@ -107,24 +107,23 @@ export class OpenCodeDB {
     this.ensureConnected();
 
     const searchQuery = `
-      SELECT DISTINCT s.*,
+      SELECT s.*, 
         (SELECT COUNT(*) FROM message WHERE session_id = s.id) as message_count
       FROM session s
-      LEFT JOIN message m ON s.id = m.session_id
-      LEFT JOIN part p ON m.id = p.message_id
       WHERE s.parent_id IS NULL 
-        AND (
-          s.title LIKE ? 
-          OR s.id LIKE ?
-          OR m.data LIKE ?
-          OR p.data LIKE ?
+        AND s.id IN (
+          SELECT DISTINCT session_id FROM message WHERE session_id = s.id AND data LIKE ?
+          UNION
+          SELECT DISTINCT session_id FROM part WHERE session_id = s.id AND data LIKE ?
+          UNION
+          SELECT id FROM session WHERE id = s.id AND title LIKE ?
         )
       ORDER BY s.time_created DESC
     `;
 
     const searchTerm = `%${query}%`;
     return this.db!.prepare(searchQuery).all(
-      searchTerm, searchTerm, searchTerm, searchTerm
+      searchTerm, searchTerm, searchTerm
     );
   }
 
@@ -132,31 +131,29 @@ export class OpenCodeDB {
     this.ensureConnected();
 
     const searchQuery = `
-      SELECT DISTINCT s.*, 
+      SELECT s.*, 
         (SELECT COUNT(*) FROM message WHERE session_id = s.id) as message_count,
         CASE 
           WHEN s.title LIKE ? THEN 3
           WHEN s.id LIKE ? THEN 2
-          WHEN p.data LIKE ? THEN 1
-          ELSE 0
+          ELSE 1
         END as relevance
       FROM session s
-      LEFT JOIN message m ON s.id = m.session_id
-      LEFT JOIN part p ON m.id = p.message_id
       WHERE s.parent_id IS NULL 
-        AND (
-          s.title LIKE ? 
-          OR s.id LIKE ?
-          OR m.data LIKE ?
-          OR p.data LIKE ?
+        AND s.id IN (
+          SELECT DISTINCT session_id FROM message WHERE session_id = s.id AND data LIKE ?
+          UNION
+          SELECT DISTINCT session_id FROM part WHERE session_id = s.id AND data LIKE ?
+          UNION
+          SELECT id FROM session WHERE id = s.id AND title LIKE ?
         )
       ORDER BY relevance DESC, s.time_created DESC
     `;
 
     const searchTerm = `%${query}%`;
     return this.db!.prepare(searchQuery).all(
-      searchTerm, searchTerm, searchTerm,
-      searchTerm, searchTerm, searchTerm, searchTerm
+      searchTerm, searchTerm,
+      searchTerm, searchTerm, searchTerm
     );
   }
 
