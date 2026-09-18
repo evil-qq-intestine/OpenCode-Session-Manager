@@ -110,7 +110,7 @@ export class OpenCodeDB {
       SELECT DISTINCT s.*,
         (SELECT COUNT(*) FROM message WHERE session_id = s.id) as message_count
       FROM session s
-      LEFT JOIN session_message m ON s.id = m.session_id
+      LEFT JOIN message m ON s.id = m.session_id
       LEFT JOIN part p ON m.id = p.message_id
       WHERE s.parent_id IS NULL 
         AND (
@@ -141,7 +141,7 @@ export class OpenCodeDB {
           ELSE 0
         END as relevance
       FROM session s
-      LEFT JOIN session_message m ON s.id = m.session_id
+      LEFT JOIN message m ON s.id = m.session_id
       LEFT JOIN part p ON m.id = p.message_id
       WHERE s.parent_id IS NULL 
         AND (
