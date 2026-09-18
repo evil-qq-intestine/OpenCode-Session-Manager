@@ -116,44 +116,81 @@ async function selectSession(): Promise<void> {
   }
 
   try {
-    const sessions = db.getSessionsWithPreview(50);
+    while (true) {
+      const sessions = db.getSessionsWithPreview(50);
 
-    if (sessions.length === 0) {
-      console.log(i18n.t('prompts.noSessionsFound'));
-      return;
-    }
+      if (sessions.length === 0) {
+        console.log(i18n.t('prompts.noSessionsFound'));
+        return;
+      }
 
-    const { selectedId } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'selectedId',
-        message: i18n.t('prompts.selectSession'),
-        choices: [
-          ...sessions.map((s, i) => ({
-            name: `${i % 2 === 0 ? '' : DIM}[${i + 1}] ${s.title} (${s.messageCount} ${i18n.t('session.messageCount').toLowerCase()}, ${formatDate(s.updatedAt)})${i % 2 === 0 ? '' : RESET}`,
-            value: s.id,
-          })),
-          new inquirer.Separator(),
-          { name: i18n.getLanguage() === 'zh' ? '退出' : 'Exit', value: '__exit__' },
-        ],
-      },
-    ]);
+      const { action } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'action',
+          message: i18n.t('prompts.selectAction'),
+          choices: [
+            { name: i18n.getLanguage() === 'zh' ? '选择会话继续' : 'Select session to resume', value: 'select' },
+            { name: i18n.getLanguage() === 'zh' ? '搜索会话' : 'Search sessions', value: 'search' },
+            { name: i18n.getLanguage() === 'zh' ? '导出会话' : 'Export session', value: 'export' },
+            { name: i18n.t('cli.exit'), value: 'exit' },
+          ],
+        },
+      ]);
 
-    if (selectedId === '__exit__') {
-      return;
-    }
+      if (action === 'exit') {
+        return;
+      }
 
-    const { confirm } = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'confirm',
-        message: i18n.t('prompts.confirmResume'),
-        default: true,
-      },
-    ]);
+      if (action === 'search') {
+        await searchSessions();
+        continue;
+      }
 
-    if (confirm) {
-      await launchSession(selectedId);
+      console.log(`\n${i18n.getLanguage() === 'zh' ? '会话列表' : 'Sessions'}:\n`);
+      sessions.forEach((s, i) => {
+        const dim = i % 2 !== 0 ? DIM : '';
+        const reset = i % 2 !== 0 ? RESET : '';
+        console.log(`${dim}[${i + 1}] ${s.title} (${s.messageCount} ${i18n.t('session.messageCount').toLowerCase()}, ${formatDate(s.updatedAt)})${reset}`);
+      });
+
+      const { num } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'num',
+          message: action === 'export'
+            ? (i18n.getLanguage() === 'zh' ? '输入编号导出会话 (0=返回):' : 'Enter number to export (0=back):')
+            : (i18n.getLanguage() === 'zh' ? '输入编号继续会话 (0=返回):' : 'Enter number to resume (0=back):'),
+        },
+      ]);
+
+      if (num === '0' || !num) {
+        continue;
+      }
+
+      const idx = parseInt(num) - 1;
+      if (idx < 0 || idx >= sessions.length) {
+        console.log(i18n.getLanguage() === 'zh' ? '无效编号' : 'Invalid number');
+        continue;
+      }
+
+      if (action === 'export') {
+        await exportSession(sessions[idx].id);
+        continue;
+      }
+
+      const { confirm } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'confirm',
+          message: i18n.t('prompts.confirmResume'),
+          default: true,
+        },
+      ]);
+
+      if (confirm) {
+        await launchSession(sessions[idx].id);
+      }
     }
   } finally {
     db.disconnect();
@@ -230,27 +267,25 @@ async function searchSessions(): Promise<void> {
       return;
     }
 
-    const { selectedId } = await inquirer.prompt([
+    const { num } = await inquirer.prompt([
       {
-        type: 'list',
-        name: 'selectedId',
-        message: i18n.t('prompts.selectSession'),
-        choices: [
-          ...results.slice(0, 10).map((s, i) => ({
-            name: `${i % 2 === 0 ? '' : DIM}${highlightMatch(s.title || i18n.t('session.untitled'), query)} (${formatDate(new Date(s.time_updated * 1000))})${i % 2 === 0 ? '' : RESET}`,
-            value: s.id,
-          })),
-          new inquirer.Separator(),
-          { name: i18n.getLanguage() === 'zh' ? '退出' : 'Exit', value: '__exit__' },
-        ],
+        type: 'input',
+        name: 'num',
+        message: i18n.getLanguage() === 'zh' ? '输入编号选择 (0=退出):' : 'Enter number (0=exit):',
       },
     ]);
 
-    if (selectedId === '__exit__') {
+    if (num === '0' || !num) {
       return;
     }
 
-    await launchSession(selectedId);
+    const idx = parseInt(num) - 1;
+    if (idx < 0 || idx >= results.slice(0, 10).length) {
+      console.log(i18n.getLanguage() === 'zh' ? '无效编号' : 'Invalid number');
+      return;
+    }
+
+    await launchSession(results[idx].id);
   } finally {
     db.disconnect();
   }
