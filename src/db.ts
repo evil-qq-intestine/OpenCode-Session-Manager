@@ -103,6 +103,22 @@ export class OpenCodeDB {
     return this.db!.prepare('SELECT * FROM part WHERE message_id = ?').all(messageId);
   }
 
+  searchSessionsByTitle(query: string): any[] {
+    this.ensureConnected();
+
+    const searchQuery = `
+      SELECT s.*, 
+        (SELECT COUNT(*) FROM message WHERE session_id = s.id) as message_count
+      FROM session s
+      WHERE s.parent_id IS NULL 
+        AND (s.title LIKE ? OR s.id LIKE ?)
+      ORDER BY s.time_created DESC
+    `;
+
+    const searchTerm = `%${query}%`;
+    return this.db!.prepare(searchQuery).all(searchTerm, searchTerm);
+  }
+
   searchSessions(query: string): any[] {
     this.ensureConnected();
 

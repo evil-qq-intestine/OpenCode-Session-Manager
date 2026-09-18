@@ -132,7 +132,8 @@ async function selectSession(): Promise<void> {
           message: i18n.t('prompts.selectAction'),
           choices: [
             { name: i18n.getLanguage() === 'zh' ? '选择会话继续' : 'Select session to resume', value: 'select' },
-            { name: i18n.getLanguage() === 'zh' ? '搜索会话' : 'Search sessions', value: 'search' },
+            { name: i18n.getLanguage() === 'zh' ? '搜索会话（仅标题）' : 'Search sessions (title only)', value: 'searchTitle' },
+            { name: i18n.getLanguage() === 'zh' ? '搜索会话（全部内容）' : 'Search sessions (all content)', value: 'searchAll' },
             { name: i18n.getLanguage() === 'zh' ? '导出会话' : 'Export session', value: 'export' },
             new inquirer.Separator(),
             { name: i18n.t('cli.exit'), value: 'exit' },
@@ -144,8 +145,13 @@ async function selectSession(): Promise<void> {
         return;
       }
 
-      if (action === 'search') {
-        await searchSessions();
+      if (action === 'searchTitle') {
+        await searchSessions(true);
+        continue;
+      }
+
+      if (action === 'searchAll') {
+        await searchSessions(false);
         continue;
       }
 
@@ -195,7 +201,7 @@ async function selectSession(): Promise<void> {
   }
 }
 
-async function searchSessions(): Promise<void> {
+async function searchSessions(titleOnly: boolean = false): Promise<void> {
   if (!db.connect()) {
     console.error(i18n.t('errors.databaseConnectionFailed'));
     process.exit(1);
@@ -207,7 +213,11 @@ async function searchSessions(): Promise<void> {
       output: process.stdout,
     });
 
-    process.stdout.write(`${i18n.t('prompts.searchQuery')} `);
+    const modeLabel = titleOnly 
+      ? (i18n.getLanguage() === 'zh' ? '（仅标题）' : ' (title only)')
+      : (i18n.getLanguage() === 'zh' ? '（全部内容）' : ' (all content)');
+    
+    process.stdout.write(`${i18n.t('prompts.searchQuery')}${modeLabel} `);
     process.stdin.setRawMode?.(true);
     process.stdin.resume();
     process.stdin.setEncoding('utf8');
@@ -217,9 +227,11 @@ async function searchSessions(): Promise<void> {
 
     const displayResults = () => {
       process.stdout.write('\x1b[2J\x1b[H');
-      process.stdout.write(`${i18n.t('prompts.searchQuery')} ${query}\n`);
+      process.stdout.write(`${i18n.t('prompts.searchQuery')}${modeLabel} ${query}\n`);
       if (query) {
-        results = db.searchSessionsWithRelevance(query);
+        results = titleOnly 
+          ? db.searchSessionsByTitle(query)
+          : db.searchSessionsWithRelevance(query);
         if (results.length > 0) {
           console.log(`\n${i18n.getLanguage() === 'zh' ? '找到' : 'Found'} ${results.length} ${i18n.getLanguage() === 'zh' ? '个结果' : 'results'}:\n`);
           results.slice(0, 10).forEach((s, i) => {
