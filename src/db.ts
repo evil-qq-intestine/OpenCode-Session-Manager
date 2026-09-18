@@ -1,11 +1,11 @@
-import Database from 'better-sqlite3';
+import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { Session, Message, Part, SessionPreview } from './types.js';
 
 export class OpenCodeDB {
-  private db: Database.Database | null = null;
+  private db: SqlJsDatabase | null = null;
   private dbPath: string;
 
   constructor(dbPath?: string) {
@@ -20,17 +20,20 @@ export class OpenCodeDB {
     return path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode.db');
   }
 
-  connect(): boolean {
+  async connect(): Promise<boolean> {
     if (!fs.existsSync(this.dbPath)) {
-      console.error(`Database not found: ${this.dbPath}`);
+      console.error(`[OCSM] Database not found: ${this.dbPath}`);
       return false;
     }
 
     try {
-      this.db = new Database(this.dbPath, { readonly: true });
+      const SQL = await initSqlJs();
+      const fileBuffer = fs.readFileSync(this.dbPath);
+      this.db = new SQL.Database(fileBuffer);
       return true;
-    } catch (error) {
-      console.error(`Failed to connect to database: ${error}`);
+    } catch (error: any) {
+      console.error(`[OCSM] Failed to connect to database: ${error.message}`);
+      console.error(`[OCSM] Error stack: ${error.stack}`);
       return false;
     }
   }
@@ -48,9 +51,31 @@ export class OpenCodeDB {
     }
   }
 
-  listSessions(limit?: number, search?: string): any[] {
+  private queryAll(sql: string, params: any[] = []): any[] {
     this.ensureConnected();
+    const stmt = this.db!.prepare(sql);
+    stmt.bind(params);
+    const results: any[] = [];
+    while (stmt.step()) {
+      results.push(stmt.getAsObject());
+    }
+    stmt.free();
+    return results;
+  }
 
+  private queryOne(sql: string, params: any[] = []): any | null {
+    this.ensureConnected();
+    const stmt = this.db!.prepare(sql);
+    stmt.bind(params);
+    let result: any = null;
+    if (stmt.step()) {
+      result = stmt.getAsObject();
+    }
+    stmt.free();
+    return result;
+  }
+
+  listSessions(limit?: number, search?: string): any[] {
     let query = `
       SELECT s.*, 
         (SELECT COUNT(*) FROM message WHERE session_id = s.id) as message_count
@@ -71,22 +96,19 @@ export class OpenCodeDB {
       params.push(limit);
     }
 
-    return this.db!.prepare(query).all(...params);
+    return this.queryAll(query, params);
   }
 
   getSession(id: string): any | null {
-    this.ensureConnected();
-    return this.db!.prepare(`
+    return this.queryOne(`
       SELECT s.*, 
         (SELECT COUNT(*) FROM message WHERE session_id = s.id) as message_count
       FROM session s 
       WHERE s.id = ?
-    `).get(id);
+    `, [id]);
   }
 
   getSessionMessages(sessionId: string, limit?: number): any[] {
-    this.ensureConnected();
-
     let query = 'SELECT * FROM message WHERE session_id = ? ORDER BY time_created ASC';
     const params: any[] = [sessionId];
 
@@ -95,17 +117,14 @@ export class OpenCodeDB {
       params.push(limit);
     }
 
-    return this.db!.prepare(query).all(...params);
+    return this.queryAll(query, params);
   }
 
   getMessageParts(messageId: string): any[] {
-    this.ensureConnected();
-    return this.db!.prepare('SELECT * FROM part WHERE message_id = ?').all(messageId);
+    return this.queryAll('SELECT * FROM part WHERE message_id = ?', [messageId]);
   }
 
   searchSessionsByTitle(query: string): any[] {
-    this.ensureConnected();
-
     const searchQuery = `
       SELECT s.*, 
         (SELECT COUNT(*) FROM message WHERE session_id = s.id) as message_count
@@ -116,12 +135,10 @@ export class OpenCodeDB {
     `;
 
     const searchTerm = `%${query}%`;
-    return this.db!.prepare(searchQuery).all(searchTerm, searchTerm);
+    return this.queryAll(searchQuery, [searchTerm, searchTerm]);
   }
 
   searchSessions(query: string): any[] {
-    this.ensureConnected();
-
     const searchQuery = `
       SELECT s.*, 
         (SELECT COUNT(*) FROM message WHERE session_id = s.id) as message_count
@@ -138,14 +155,10 @@ export class OpenCodeDB {
     `;
 
     const searchTerm = `%${query}%`;
-    return this.db!.prepare(searchQuery).all(
-      searchTerm, searchTerm, searchTerm
-    );
+    return this.queryAll(searchQuery, [searchTerm, searchTerm, searchTerm]);
   }
 
   searchSessionsWithRelevance(query: string): any[] {
-    this.ensureConnected();
-
     const searchQuery = `
       SELECT s.*, 
         (SELECT COUNT(*) FROM message WHERE session_id = s.id) as message_count,
@@ -167,15 +180,13 @@ export class OpenCodeDB {
     `;
 
     const searchTerm = `%${query}%`;
-    return this.db!.prepare(searchQuery).all(
+    return this.queryAll(searchQuery, [
       searchTerm, searchTerm,
       searchTerm, searchTerm, searchTerm
-    );
+    ]);
   }
 
   getSessionsWithPreview(limit?: number): SessionPreview[] {
-    this.ensureConnected();
-
     const sessions = this.listSessions(limit);
     
     return sessions.map(session => {
@@ -210,9 +221,9 @@ export class OpenCodeDB {
     this.ensureConnected();
 
     try {
-      this.db!.prepare('DELETE FROM part WHERE session_id IN (SELECT id FROM session_message WHERE session_id = ?)').run(id);
-      this.db!.prepare('DELETE FROM session_message WHERE session_id = ?').run(id);
-      this.db!.prepare('DELETE FROM session WHERE id = ?').run(id);
+      this.db!.run('DELETE FROM part WHERE session_id IN (SELECT id FROM session_message WHERE session_id = ?)', [id]);
+      this.db!.run('DELETE FROM session_message WHERE session_id = ?', [id]);
+      this.db!.run('DELETE FROM session WHERE id = ?', [id]);
       return true;
     } catch (error) {
       console.error(`Failed to delete session: ${error}`);
@@ -221,8 +232,6 @@ export class OpenCodeDB {
   }
 
   exportSession(sessionId: string): any {
-    this.ensureConnected();
-
     const session = this.getSession(sessionId);
     if (!session) {
       return null;
@@ -242,8 +251,6 @@ export class OpenCodeDB {
   }
 
   exportAllSessions(): any[] {
-    this.ensureConnected();
-
     const sessions = this.listSessions();
     return sessions.map((session: any) => this.exportSession(session.id)).filter(Boolean);
   }

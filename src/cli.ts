@@ -96,7 +96,7 @@ function displaySessions(sessions: any[], query?: string): void {
 }
 
 async function listSessions(): Promise<void> {
-  if (!db.connect()) {
+  if (!await db.connect()) {
     console.error(i18n.t('errors.databaseConnectionFailed'));
     process.exit(1);
   }
@@ -110,7 +110,7 @@ async function listSessions(): Promise<void> {
 }
 
 async function selectSession(): Promise<void> {
-  if (!db.connect()) {
+  if (!await db.connect()) {
     console.error(i18n.t('errors.databaseConnectionFailed'));
     process.exit(1);
   }
@@ -202,7 +202,7 @@ async function selectSession(): Promise<void> {
 }
 
 async function searchSessions(titleOnly: boolean = false): Promise<void> {
-  if (!db.connect()) {
+  if (!await db.connect()) {
     console.error(i18n.t('errors.databaseConnectionFailed'));
     process.exit(1);
   }
@@ -334,7 +334,7 @@ async function launchSession(sessionId: string): Promise<void> {
 }
 
 async function resumeSession(sessionId: string): Promise<void> {
-  if (!db.connect()) {
+  if (!await db.connect()) {
     console.error(i18n.t('errors.databaseConnectionFailed'));
     process.exit(1);
   }
@@ -454,7 +454,7 @@ function formatAsText(data: any): string {
 }
 
 async function backupSessions(options: { includeAll: boolean; sessionIds?: string[] }): Promise<void> {
-  if (!db.connect()) {
+  if (!await db.connect()) {
     console.error(i18n.t('errors.databaseConnectionFailed'));
     process.exit(1);
   }
@@ -524,7 +524,7 @@ async function main(): Promise<void> {
         console.error(i18n.t('errors.invalidSessionId'));
         process.exit(1);
       }
-      if (!db.connect()) {
+      if (!await db.connect()) {
         console.error(i18n.t('errors.databaseConnectionFailed'));
         process.exit(1);
       }

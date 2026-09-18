@@ -57,7 +57,7 @@ export const SessionPickerPlugin = async (ctx: any) => {
           const limit = args.limit || options.maxSessions || 20;
           const search = args.search;
 
-          if (!db.connect()) {
+          if (!await db.connect()) {
             return i18n.t('errors.databaseConnectionFailed');
           }
 
@@ -92,7 +92,7 @@ export const SessionPickerPlugin = async (ctx: any) => {
         async execute(args: any) {
           const { query, session_id } = args;
 
-          if (!db.connect()) {
+          if (!await db.connect()) {
             return i18n.t('errors.databaseConnectionFailed');
           }
 
@@ -144,7 +144,7 @@ export const SessionPickerPlugin = async (ctx: any) => {
         async execute(args: any, context: any) {
           const { session_id, fork } = args;
 
-          if (!db.connect()) {
+          if (!await db.connect()) {
             return i18n.t('errors.databaseConnectionFailed');
           }
 
@@ -178,7 +178,7 @@ export const SessionPickerPlugin = async (ctx: any) => {
         async execute(args: any) {
           const { session_id } = args;
 
-          if (!db.connect()) {
+          if (!await db.connect()) {
             return i18n.t('errors.databaseConnectionFailed');
           }
 
@@ -231,7 +231,7 @@ export const SessionPickerPlugin = async (ctx: any) => {
         async execute(args: any) {
           const { session_id, output_path } = args;
 
-          if (!db.connect()) {
+          if (!await db.connect()) {
             return i18n.t('errors.databaseConnectionFailed');
           }
 
@@ -264,7 +264,7 @@ export const SessionPickerPlugin = async (ctx: any) => {
         async execute(args: any) {
           const { session_ids, all, output_path } = args;
 
-          if (!db.connect()) {
+          if (!await db.connect()) {
             return i18n.t('errors.databaseConnectionFailed');
           }
 

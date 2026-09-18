@@ -3,13 +3,14 @@
   "version": "0.1.2",
   "description": "OCSM - OpenCode Session Manager. Select and manage sessions from any directory.",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/index.mjs",
   "bin": {
     "ocsm": "./dist/cli.js",
     "ocsm-setup": "./dist/setup.js"
   },
   "scripts": {
     "build": "tsc",
+    "bundle": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.mjs --external:@opencode-ai/plugin",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "setup": "node dist/setup.js"
@@ -32,14 +33,15 @@
   "homepage": "https://github.com/evil-qq-intestine/OpenCode-Session-Manager#readme",
   "license": "MIT",
   "dependencies": {
-    "better-sqlite3": "^11.0.0",
-    "inquirer": "^9.0.0"
+    "inquirer": "^9.0.0",
+    "sql.js": "^1.14.2"
   },
   "devDependencies": {
     "@opencode-ai/plugin": "^1.18.31",
-    "@types/better-sqlite3": "^7.6.0",
     "@types/inquirer": "^9.0.0",
     "@types/node": "^20.0.0",
+    "@types/sql.js": "^1.4.11",
+    "esbuild": "^0.28.2",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
