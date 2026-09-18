@@ -1,6 +1,6 @@
 {
   "name": "opencode-ocsm",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OCSM - OpenCode Session Manager. Select and manage sessions from any directory.",
   "type": "module",
   "main": "dist/index.js",
