@@ -5,6 +5,7 @@ import * as os from 'os';
 import { randomBytes } from 'crypto';
 import { execSync } from 'child_process';
 import { Session, Message, Part, SessionPreview } from './types.js';
+import { i18n } from './i18n.js';
 
 export class OpenCodeDB {
   private db: SqlJsDatabase | null = null;
@@ -283,7 +284,11 @@ export class OpenCodeDB {
     }
 
     if (!fs.existsSync(path.join(gitDir, '.git'))) {
-      throw new Error('Session directory is not a Git repository');
+      throw new Error(
+        i18n.getLanguage() === 'zh'
+          ? `会话目录 (${sessionDir}) 不在 Git 仓库中。Bundle 导出需要在 Git 仓库内创建会话。`
+          : `Session directory (${sessionDir}) is not inside a Git repository. Bundle export requires sessions created within a Git repository.`
+      );
     }
 
     const exportData = this.exportSession(sessionId);
