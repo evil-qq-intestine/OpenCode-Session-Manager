@@ -355,49 +355,40 @@ async function resumeSession(sessionId: string): Promise<void> {
 }
 
 async function exportSession(sessionId: string): Promise<void> {
-  if (!db.connect()) {
-    console.error(i18n.t('errors.databaseConnectionFailed'));
-    process.exit(1);
+  const { format } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'format',
+      message: i18n.t('prompts.selectExportFormat'),
+      choices: [
+        { name: i18n.t('exportFormats.json'), value: 'json' },
+        { name: i18n.t('exportFormats.markdown'), value: 'markdown' },
+        { name: i18n.t('exportFormats.text'), value: 'text' },
+      ],
+    },
+  ]);
+
+  const exportData = db.exportSession(sessionId);
+  if (!exportData) {
+    console.error(i18n.t('errors.exportFailed'));
+    return;
   }
 
-  try {
-    const { format } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'format',
-        message: i18n.t('prompts.selectExportFormat'),
-        choices: [
-          { name: i18n.t('exportFormats.json'), value: 'json' },
-          { name: i18n.t('exportFormats.markdown'), value: 'markdown' },
-          { name: i18n.t('exportFormats.text'), value: 'text' },
-        ],
-      },
-    ]);
+  const filename = `session-${sessionId.substring(0, 8)}-${Date.now()}.${format === 'json' ? 'json' : format === 'markdown' ? 'md' : 'txt'}`;
+  const outputPath = path.join(process.cwd(), filename);
 
-    const exportData = db.exportSession(sessionId);
-    if (!exportData) {
-      console.error(i18n.t('errors.exportFailed'));
-      return;
-    }
+  let content: string;
 
-    const filename = `session-${sessionId.substring(0, 8)}-${Date.now()}.${format === 'json' ? 'json' : format === 'markdown' ? 'md' : 'txt'}`;
-    const outputPath = path.join(process.cwd(), filename);
-
-    let content: string;
-
-    if (format === 'json') {
-      content = JSON.stringify(exportData, null, 2);
-    } else if (format === 'markdown') {
-      content = formatAsMarkdown(exportData);
-    } else {
-      content = formatAsText(exportData);
-    }
-
-    fs.writeFileSync(outputPath, content, 'utf-8');
-    console.log(`\n${i18n.t('results.exportSuccess', { path: outputPath })}`);
-  } finally {
-    db.disconnect();
+  if (format === 'json') {
+    content = JSON.stringify(exportData, null, 2);
+  } else if (format === 'markdown') {
+    content = formatAsMarkdown(exportData);
+  } else {
+    content = formatAsText(exportData);
   }
+
+  fs.writeFileSync(outputPath, content, 'utf-8');
+  console.log(`\n${i18n.t('results.exportSuccess', { path: outputPath })}`);
 }
 
 function formatAsMarkdown(data: any): string {
@@ -533,7 +524,15 @@ async function main(): Promise<void> {
         console.error(i18n.t('errors.invalidSessionId'));
         process.exit(1);
       }
-      await exportSession(args[1]);
+      if (!db.connect()) {
+        console.error(i18n.t('errors.databaseConnectionFailed'));
+        process.exit(1);
+      }
+      try {
+        await exportSession(args[1]);
+      } finally {
+        db.disconnect();
+      }
       break;
 
     case 'backup':
