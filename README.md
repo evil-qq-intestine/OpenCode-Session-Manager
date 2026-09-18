@@ -46,7 +46,7 @@ npm install && npm run build
 ```bash
 ocsm                  # interactive session picker (default)
 ocsm list             # list recent sessions
-ocsm select           # interactive session picker
+ocsm select           # interactive session picker with search
 ocsm resume <id>      # resume a session
 ocsm export <id>      # export session
 ocsm backup --all     # backup all sessions
@@ -147,6 +147,13 @@ npm run dev         # watch mode
 npm run typecheck   # type check
 ```
 
+### Add New Language
+
+1. Copy `locales/en.json` to `locales/xx.json`
+2. Translate the strings
+3. Add `'xx'` to `Language` type in `src/i18n.ts`
+4. Submit PR
+
 ### Structure
 
 ```
@@ -158,6 +165,9 @@ opencode-session-picker/
 │   ├── types.ts      # Type definitions
 │   ├── i18n.ts       # Internationalization
 │   └── setup.ts      # Setup wizard
+├── locales/
+│   ├── zh.json       # Chinese translations
+│   └── en.json       # English translations
 ├── dist/
 ├── package.json
 ├── tsconfig.json
