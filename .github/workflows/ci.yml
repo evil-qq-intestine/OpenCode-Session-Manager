@@ -31,6 +31,9 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: Setup language config
+        run: mkdir -p ~/.config/opencode && echo '{"language":"en"}' > ~/.config/opencode/ocsm-lang.json
+
       - name: Test CLI
         run: node dist/cli.js help
 
