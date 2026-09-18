@@ -128,11 +128,13 @@ async function selectSession(): Promise<void> {
         {
           type: 'list',
           name: 'action',
+          loop: false,
           message: i18n.t('prompts.selectAction'),
           choices: [
             { name: i18n.getLanguage() === 'zh' ? '选择会话继续' : 'Select session to resume', value: 'select' },
             { name: i18n.getLanguage() === 'zh' ? '搜索会话' : 'Search sessions', value: 'search' },
             { name: i18n.getLanguage() === 'zh' ? '导出会话' : 'Export session', value: 'export' },
+            new inquirer.Separator(),
             { name: i18n.t('cli.exit'), value: 'exit' },
           ],
         },
@@ -147,35 +149,31 @@ async function selectSession(): Promise<void> {
         continue;
       }
 
-      console.log(`\n${i18n.getLanguage() === 'zh' ? '会话列表' : 'Sessions'}:\n`);
-      sessions.forEach((s, i) => {
-        const dim = i % 2 !== 0 ? DIM : '';
-        const reset = i % 2 !== 0 ? RESET : '';
-        console.log(`${dim}[${i + 1}] ${s.title} (${s.messageCount} ${i18n.t('session.messageCount').toLowerCase()}, ${formatDate(s.updatedAt)})${reset}`);
-      });
-
-      const { num } = await inquirer.prompt([
+      const { selectedId } = await inquirer.prompt([
         {
-          type: 'input',
-          name: 'num',
+          type: 'list',
+          name: 'selectedId',
+          loop: false,
           message: action === 'export'
-            ? (i18n.getLanguage() === 'zh' ? '输入编号导出会话 (0=返回):' : 'Enter number to export (0=back):')
-            : (i18n.getLanguage() === 'zh' ? '输入编号继续会话 (0=返回):' : 'Enter number to resume (0=back):'),
+            ? (i18n.getLanguage() === 'zh' ? '选择要导出的会话:' : 'Select session to export:')
+            : i18n.t('prompts.selectSession'),
+          choices: [
+            ...sessions.map((s, i) => ({
+              name: `${i % 2 === 0 ? '' : DIM}[${i + 1}] ${s.title} (${s.messageCount} ${i18n.t('session.messageCount').toLowerCase()}, ${formatDate(s.updatedAt)})${i % 2 === 0 ? '' : RESET}`,
+              value: s.id,
+            })),
+            new inquirer.Separator(),
+            { name: i18n.getLanguage() === 'zh' ? '返回' : 'Back', value: '__back__' },
+          ],
         },
       ]);
 
-      if (num === '0' || !num) {
-        continue;
-      }
-
-      const idx = parseInt(num) - 1;
-      if (idx < 0 || idx >= sessions.length) {
-        console.log(i18n.getLanguage() === 'zh' ? '无效编号' : 'Invalid number');
+      if (selectedId === '__back__') {
         continue;
       }
 
       if (action === 'export') {
-        await exportSession(sessions[idx].id);
+        await exportSession(selectedId);
         continue;
       }
 
@@ -189,7 +187,7 @@ async function selectSession(): Promise<void> {
       ]);
 
       if (confirm) {
-        await launchSession(sessions[idx].id);
+        await launchSession(selectedId);
       }
     }
   } finally {
@@ -218,7 +216,8 @@ async function searchSessions(): Promise<void> {
     let results: any[] = [];
 
     const displayResults = () => {
-      process.stdout.write('\r\x1b[K');
+      process.stdout.write('\x1b[2J\x1b[H');
+      process.stdout.write(`${i18n.t('prompts.searchQuery')} ${query}\n`);
       if (query) {
         results = db.searchSessionsWithRelevance(query);
         if (results.length > 0) {
@@ -233,7 +232,6 @@ async function searchSessions(): Promise<void> {
           console.log(`\n${i18n.t('prompts.noResultsFound')}`);
         }
       }
-      process.stdout.write(`${i18n.t('prompts.searchQuery')} ${query}`);
     };
 
     await new Promise<void>((resolve) => {
@@ -267,25 +265,28 @@ async function searchSessions(): Promise<void> {
       return;
     }
 
-    const { num } = await inquirer.prompt([
+    const { selectedId } = await inquirer.prompt([
       {
-        type: 'input',
-        name: 'num',
-        message: i18n.getLanguage() === 'zh' ? '输入编号选择 (0=退出):' : 'Enter number (0=exit):',
+        type: 'list',
+        name: 'selectedId',
+        loop: false,
+        message: i18n.t('prompts.selectSession'),
+        choices: [
+          ...results.slice(0, 10).map((s, i) => ({
+            name: `${i % 2 === 0 ? '' : DIM}${highlightMatch(s.title || i18n.t('session.untitled'), query)} (${formatDate(new Date(s.time_updated * 1000))})${i % 2 === 0 ? '' : RESET}`,
+            value: s.id,
+          })),
+          new inquirer.Separator(),
+          { name: i18n.getLanguage() === 'zh' ? '返回' : 'Back', value: '__back__' },
+        ],
       },
     ]);
 
-    if (num === '0' || !num) {
+    if (selectedId === '__back__') {
       return;
     }
 
-    const idx = parseInt(num) - 1;
-    if (idx < 0 || idx >= results.slice(0, 10).length) {
-      console.log(i18n.getLanguage() === 'zh' ? '无效编号' : 'Invalid number');
-      return;
-    }
-
-    await launchSession(results[idx].id);
+    await launchSession(selectedId);
   } finally {
     db.disconnect();
   }
