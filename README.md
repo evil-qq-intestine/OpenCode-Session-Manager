@@ -19,6 +19,7 @@ Session manager for OpenCode. List, search, resume, export and backup sessions f
 npm install -g opencode-ocsm
 ocsm lang   # select language on first run
 ```
+#### If you encounter an `EACCES` error on Linux/WSL, it is recommended to install Node.js using nvm to avoid using `sudo npm install -g`.
 
 ### As OpenCode plugin
 
