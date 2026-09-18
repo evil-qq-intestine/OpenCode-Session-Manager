@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 import inquirer from 'inquirer';
-import search from '@inquirer/search';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as readline from 'readline';
 import { execSync } from 'child_process';
 import { OpenCodeDB } from './db.js';
 import { SessionPreview } from './types.js';
@@ -201,31 +201,57 @@ async function searchSessions(): Promise<void> {
   }
 
   try {
-    const query = await search({
-      message: i18n.t('prompts.searchQuery'),
-      source: async (input) => {
-        const searchTerm = input || '';
-        if (!searchTerm) {
-          return [];
-        }
-        
-        const results = db.searchSessionsWithRelevance(searchTerm);
-        if (results.length === 0) {
-          return [{ name: i18n.t('prompts.noResultsFound'), value: '__no_results__' }];
-        }
-
-        return results.slice(0, 10).map((s, i) => ({
-          name: `${i % 2 === 0 ? '' : '\x1b[2m'}[${i + 1}] ${s.title || i18n.t('session.untitled')} (${formatDate(new Date(s.time_updated * 1000))})${i % 2 === 0 ? '' : '\x1b[0m'}`,
-          value: s.id,
-        }));
-      },
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
     });
 
-    if (query === '__no_results__' || !query) {
+    const query = await new Promise<string>((resolve) => {
+      rl.question(`${i18n.t('prompts.searchQuery')} `, (answer) => {
+        rl.close();
+        resolve(answer);
+      });
+    });
+
+    if (!query.trim()) {
       return;
     }
 
-    await launchSession(query);
+    const results = db.searchSessionsWithRelevance(query);
+    
+    if (results.length === 0) {
+      console.log(i18n.t('prompts.noResultsFound'));
+      return;
+    }
+
+    console.log(`\n${i18n.getLanguage() === 'zh' ? '找到' : 'Found'} ${results.length} ${i18n.getLanguage() === 'zh' ? '个结果' : 'results'}:\n`);
+    results.forEach((s, i) => {
+      const dim = i % 2 !== 0 ? '\x1b[2m' : '';
+      const reset = i % 2 !== 0 ? '\x1b[0m' : '';
+      console.log(`${dim}[${i + 1}] ${s.title || i18n.t('session.untitled')} (${formatDate(new Date(s.time_updated * 1000))})${reset}`);
+    });
+
+    const { selectedId } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'selectedId',
+        message: i18n.t('prompts.selectSession'),
+        choices: [
+          ...results.map((s, i) => ({
+            name: `${i % 2 === 0 ? '' : '\x1b[2m'}[${i + 1}] ${s.title || i18n.t('session.untitled')} (${formatDate(new Date(s.time_updated * 1000))})${i % 2 === 0 ? '' : '\x1b[0m'}`,
+            value: s.id,
+          })),
+          new inquirer.Separator(),
+          { name: i18n.getLanguage() === 'zh' ? '退出' : 'Exit', value: '__exit__' },
+        ],
+      },
+    ]);
+
+    if (selectedId === '__exit__') {
+      return;
+    }
+
+    await launchSession(selectedId);
   } finally {
     db.disconnect();
   }
