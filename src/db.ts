@@ -51,15 +51,20 @@ export class OpenCodeDB {
   listSessions(limit?: number, search?: string): any[] {
     this.ensureConnected();
 
-    let query = 'SELECT * FROM session WHERE parent_id IS NULL';
+    let query = `
+      SELECT s.*, 
+        (SELECT COUNT(*) FROM message WHERE session_id = s.id) as message_count
+      FROM session s 
+      WHERE s.parent_id IS NULL
+    `;
     const params: any[] = [];
 
     if (search) {
-      query += ' AND (title LIKE ? OR id LIKE ?)';
+      query += ' AND (s.title LIKE ? OR s.id LIKE ?)';
       params.push(`%${search}%`, `%${search}%`);
     }
 
-    query += ' ORDER BY time_created DESC';
+    query += ' ORDER BY s.time_created DESC';
 
     if (limit) {
       query += ' LIMIT ?';
@@ -71,7 +76,12 @@ export class OpenCodeDB {
 
   getSession(id: string): any | null {
     this.ensureConnected();
-    return this.db!.prepare('SELECT * FROM session WHERE id = ?').get(id);
+    return this.db!.prepare(`
+      SELECT s.*, 
+        (SELECT COUNT(*) FROM message WHERE session_id = s.id) as message_count
+      FROM session s 
+      WHERE s.id = ?
+    `).get(id);
   }
 
   getSessionMessages(sessionId: string, limit?: number): any[] {
@@ -97,7 +107,8 @@ export class OpenCodeDB {
     this.ensureConnected();
 
     const searchQuery = `
-      SELECT DISTINCT s.* 
+      SELECT DISTINCT s.*,
+        (SELECT COUNT(*) FROM message WHERE session_id = s.id) as message_count
       FROM session s
       LEFT JOIN session_message m ON s.id = m.session_id
       LEFT JOIN part p ON m.id = p.message_id
@@ -113,6 +124,38 @@ export class OpenCodeDB {
 
     const searchTerm = `%${query}%`;
     return this.db!.prepare(searchQuery).all(
+      searchTerm, searchTerm, searchTerm, searchTerm
+    );
+  }
+
+  searchSessionsWithRelevance(query: string): any[] {
+    this.ensureConnected();
+
+    const searchQuery = `
+      SELECT DISTINCT s.*, 
+        (SELECT COUNT(*) FROM message WHERE session_id = s.id) as message_count,
+        CASE 
+          WHEN s.title LIKE ? THEN 3
+          WHEN s.id LIKE ? THEN 2
+          WHEN p.data LIKE ? THEN 1
+          ELSE 0
+        END as relevance
+      FROM session s
+      LEFT JOIN session_message m ON s.id = m.session_id
+      LEFT JOIN part p ON m.id = p.message_id
+      WHERE s.parent_id IS NULL 
+        AND (
+          s.title LIKE ? 
+          OR s.id LIKE ?
+          OR m.data LIKE ?
+          OR p.data LIKE ?
+        )
+      ORDER BY relevance DESC, s.time_created DESC
+    `;
+
+    const searchTerm = `%${query}%`;
+    return this.db!.prepare(searchQuery).all(
+      searchTerm, searchTerm, searchTerm,
       searchTerm, searchTerm, searchTerm, searchTerm
     );
   }

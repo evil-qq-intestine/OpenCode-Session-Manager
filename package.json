@@ -32,6 +32,7 @@
   "homepage": "https://github.com/evil-qq-intestine/OpenCode-Session-Manager#readme",
   "license": "MIT",
   "dependencies": {
+    "@inquirer/search": "^4.3.3",
     "better-sqlite3": "^11.0.0",
     "inquirer": "^9.0.0"
   },
@@ -52,6 +53,7 @@
   },
   "files": [
     "dist",
+    "locales",
     "README.md"
   ]
 }

@@ -1,0 +1,85 @@
+{
+  "cli": {
+    "help": "显示帮助信息",
+    "list": "列出最近的会话",
+    "select": "交互式选择会话",
+    "resume": "继续指定会话",
+    "exportCmd": "导出会话",
+    "backup": "备份会话",
+    "exit": "退出",
+    "back": "返回"
+  },
+  "prompts": {
+    "selectAction": "选择操作:",
+    "selectSession": "选择会话:",
+    "searchQuery": "输入搜索关键词:",
+    "confirmResume": "确定要继续此会话吗?",
+    "selectExportFormat": "选择导出格式:",
+    "enterSessionId": "请输入会话 ID:",
+    "noSessionsFound": "没有找到会话",
+    "noResultsFound": "没有找到匹配的结果"
+  },
+  "results": {
+    "sessionList": "会话列表",
+    "foundSessions": "找到 {count} 个会话",
+    "sessionNotFound": "会话 {id} 不存在",
+    "exportSuccess": "会话已导出到: {path}",
+    "exportFailed": "导出会话失败",
+    "backupSuccess": "备份完成: {path}\n包含 {count} 个会话",
+    "backupFailed": "备份失败",
+    "launchSuccess": "启动 OpenCode 并继续会话: {title}",
+    "launchFailed": "启动 OpenCode 失败，请确保已安装 OpenCode",
+    "databaseConnected": "数据库连接成功",
+    "databaseDisconnected": "数据库断开成功",
+    "databaseError": "数据库错误: {error}"
+  },
+  "session": {
+    "title": "标题",
+    "id": "ID",
+    "messageCount": "消息数",
+    "createdAt": "创建时间",
+    "updatedAt": "更新时间",
+    "tokensInput": "输入 Token",
+    "tokensOutput": "输出 Token",
+    "preview": "预览",
+    "untitled": "无标题"
+  },
+  "tools": {
+    "sessionListDesc": "列出所有会话，支持搜索和分页",
+    "sessionSearchDesc": "搜索会话内容，支持标题和消息内容搜索",
+    "sessionSwitchDesc": "切换到指定会话",
+    "sessionInfoDesc": "获取会话详细信息",
+    "sessionExportDesc": "导出会话为 JSON 格式",
+    "sessionBackupDesc": "备份会话",
+    "limitParam": "返回的会话数量，默认20",
+    "searchParam": "搜索关键词",
+    "sessionIdParam": "目标会话 ID",
+    "forkParam": "是否创建分支，默认 false",
+    "outputPathParam": "输出文件路径",
+    "allParam": "备份所有会话"
+  },
+  "errors": {
+    "databaseNotFound": "数据库未找到: {path}",
+    "databaseConnectionFailed": "无法连接到 OpenCode 数据库",
+    "sessionNotExist": "会话 {id} 不存在",
+    "invalidSessionId": "请提供有效的会话 ID",
+    "exportFailed": "导出会话失败",
+    "backupFailed": "备份会话失败",
+    "launchFailed": "启动 OpenCode 失败",
+    "unknownCommand": "未知命令: {command}"
+  },
+  "exportFormats": {
+    "json": "JSON (完整数据)",
+    "markdown": "Markdown (可读格式)",
+    "text": "纯文本"
+  },
+  "common": {
+    "yes": "是",
+    "no": "否",
+    "cancel": "取消",
+    "confirm": "确认",
+    "loading": "加载中...",
+    "success": "成功",
+    "error": "错误"
+  }
+}

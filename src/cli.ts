@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 
 import inquirer from 'inquirer';
+import search from '@inquirer/search';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
+import { execSync } from 'child_process';
 import { OpenCodeDB } from './db.js';
-import { SessionPreview, ExportOptions, BackupOptions } from './types.js';
-import { i18n, Language } from './i18n.js';
+import { SessionPreview } from './types.js';
+import { i18n, Language, getAvailableLanguages } from './i18n.js';
 
 const db = new OpenCodeDB();
 
@@ -19,26 +22,51 @@ function formatDate(date: Date): string {
   });
 }
 
-function formatSession(session: SessionPreview, index: number): string {
-  const preview = session.preview ? ` - ${session.preview.substring(0, 50)}...` : '';
-  return `[${index + 1}] ${session.title} (${session.messageCount} ${i18n.t('session.messageCount').toLowerCase()}, ${formatDate(session.updatedAt)})${preview}`;
+function findOpenCode(): string | null {
+  const candidates = ['opencode'];
+  
+  for (const cmd of candidates) {
+    try {
+      const result = execSync(`which ${cmd}`, { encoding: 'utf-8', stdio: 'pipe' });
+      if (result.trim()) return result.trim();
+    } catch {}
+  }
+  
+  const commonPaths = [
+    path.join(os.homedir(), '.local', 'bin', 'opencode'),
+    path.join(os.homedir(), '.cargo', 'bin', 'opencode'),
+    '/usr/local/bin/opencode',
+    '/usr/bin/opencode',
+  ];
+  
+  for (const p of commonPaths) {
+    if (fs.existsSync(p)) return p;
+  }
+  
+  return null;
 }
 
 async function selectLanguage(): Promise<void> {
+  const languages = getAvailableLanguages();
+  const languageNames: Record<string, string> = {
+    zh: '中文',
+    en: 'English',
+  };
+
   const { language } = await inquirer.prompt([
     {
       type: 'list',
       name: 'language',
       message: 'Select language / 选择语言:',
-      choices: [
-        { name: '中文 (Chinese)', value: 'zh' },
-        { name: 'English', value: 'en' },
-      ],
+      choices: languages.map(lang => ({
+        name: languageNames[lang] || lang,
+        value: lang,
+      })),
     },
   ]);
 
   i18n.saveLanguage(language as Language);
-  console.log(`\n${language === 'zh' ? '已选择中文' : 'Language set to English'}\n`);
+  console.log(`\n${language === 'zh' ? '已选择中文' : 'Language set to ' + (languageNames[language] || language)}\n`);
 }
 
 async function listSessions(): Promise<void> {
@@ -57,9 +85,11 @@ async function listSessions(): Promise<void> {
 
     console.log(`\n=== ${i18n.t('results.sessionList')} ===\n`);
     sessions.forEach((session, index) => {
-      console.log(formatSession(session, index));
+      const preview = session.preview ? ` - ${session.preview.substring(0, 50)}...` : '';
+      const dim = index % 2 !== 0 ? '\x1b[2m' : '';
+      const reset = index % 2 !== 0 ? '\x1b[0m' : '';
+      console.log(`${dim}[${index + 1}] ${session.title} (${session.messageCount} ${i18n.t('session.messageCount').toLowerCase()}, ${formatDate(session.updatedAt)})${preview}${reset}`);
     });
-    console.log(`\n${i18n.getLanguage() === 'zh' ? '使用 "ocsm select" 交互式选择会话' : 'Use "ocsm select" for interactive selection'}`);
   } finally {
     db.disconnect();
   }
@@ -98,33 +128,7 @@ async function selectSession(): Promise<void> {
     }
 
     if (action === 'search') {
-      const { query } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'query',
-          message: i18n.t('prompts.searchQuery'),
-        },
-      ]);
-
-      const results = db.searchSessions(query);
-      if (results.length === 0) {
-        console.log(i18n.t('prompts.noResultsFound'));
-        return;
-      }
-
-      const { selectedId } = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'selectedId',
-          message: i18n.t('prompts.selectSession'),
-          choices: results.map(s => ({
-            name: `${s.title || i18n.t('session.untitled')} (${formatDate(new Date(s.time_updated * 1000))})`,
-            value: s.id,
-          })),
-        },
-      ]);
-
-      await launchSession(selectedId);
+      await searchSessions();
       return;
     }
 
@@ -134,12 +138,20 @@ async function selectSession(): Promise<void> {
           type: 'list',
           name: 'selectedId',
           message: i18n.getLanguage() === 'zh' ? '选择要导出的会话:' : 'Select session to export:',
-          choices: sessions.map(s => ({
-            name: `${s.title} (${formatDate(s.updatedAt)})`,
-            value: s.id,
-          })),
+          choices: [
+            ...sessions.map((s, i) => ({
+              name: `${i % 2 === 0 ? '' : '\x1b[2m'}[${i + 1}] ${s.title} (${s.messageCount} ${i18n.t('session.messageCount').toLowerCase()}, ${formatDate(s.updatedAt)})${i % 2 === 0 ? '' : '\x1b[0m'}`,
+              value: s.id,
+            })),
+            new inquirer.Separator(),
+            { name: i18n.getLanguage() === 'zh' ? '退出' : 'Exit', value: '__exit__' },
+          ],
         },
       ]);
+
+      if (selectedId === '__exit__') {
+        return;
+      }
 
       await exportSession(selectedId);
       return;
@@ -150,12 +162,20 @@ async function selectSession(): Promise<void> {
         type: 'list',
         name: 'selectedId',
         message: i18n.t('prompts.selectSession'),
-        choices: sessions.map(s => ({
-          name: `${s.title} (${s.messageCount} ${i18n.t('session.messageCount').toLowerCase()}, ${formatDate(s.updatedAt)})`,
-          value: s.id,
-        })),
+        choices: [
+          ...sessions.map((s, i) => ({
+            name: `${i % 2 === 0 ? '' : '\x1b[2m'}[${i + 1}] ${s.title} (${s.messageCount} ${i18n.t('session.messageCount').toLowerCase()}, ${formatDate(s.updatedAt)})${i % 2 === 0 ? '' : '\x1b[0m'}`,
+            value: s.id,
+          })),
+          new inquirer.Separator(),
+          { name: i18n.getLanguage() === 'zh' ? '退出' : 'Exit', value: '__exit__' },
+        ],
       },
     ]);
+
+    if (selectedId === '__exit__') {
+      return;
+    }
 
     const { confirm } = await inquirer.prompt([
       {
@@ -174,6 +194,43 @@ async function selectSession(): Promise<void> {
   }
 }
 
+async function searchSessions(): Promise<void> {
+  if (!db.connect()) {
+    console.error(i18n.t('errors.databaseConnectionFailed'));
+    process.exit(1);
+  }
+
+  try {
+    const query = await search({
+      message: i18n.t('prompts.searchQuery'),
+      source: async (input) => {
+        const searchTerm = input || '';
+        if (!searchTerm) {
+          return [];
+        }
+        
+        const results = db.searchSessionsWithRelevance(searchTerm);
+        if (results.length === 0) {
+          return [{ name: i18n.t('prompts.noResultsFound'), value: '__no_results__' }];
+        }
+
+        return results.slice(0, 10).map((s, i) => ({
+          name: `${i % 2 === 0 ? '' : '\x1b[2m'}[${i + 1}] ${s.title || i18n.t('session.untitled')} (${formatDate(new Date(s.time_updated * 1000))})${i % 2 === 0 ? '' : '\x1b[0m'}`,
+          value: s.id,
+        }));
+      },
+    });
+
+    if (query === '__no_results__' || !query) {
+      return;
+    }
+
+    await launchSession(query);
+  } finally {
+    db.disconnect();
+  }
+}
+
 async function launchSession(sessionId: string): Promise<void> {
   const session = db.getSession(sessionId);
   if (!session) {
@@ -181,13 +238,23 @@ async function launchSession(sessionId: string): Promise<void> {
     return;
   }
 
+  const opencodePath = findOpenCode();
+  if (!opencodePath) {
+    console.error(i18n.getLanguage() === 'zh' 
+      ? '未找到 OpenCode。请确保已安装 OpenCode 并添加到 PATH。'
+      : 'OpenCode not found. Make sure OpenCode is installed and in your PATH.');
+    console.log(i18n.getLanguage() === 'zh'
+      ? '你可以手动运行: opencode --session ' + sessionId
+      : 'You can manually run: opencode --session ' + sessionId);
+    return;
+  }
+
   const title = session.title || i18n.t('session.untitled');
   console.log(`\n${i18n.t('results.launchSuccess', { title })}`);
-  console.log(`> opencode --session ${sessionId}\n`);
+  console.log(`> ${opencodePath} --session ${sessionId}\n`);
 
-  const { execSync } = await import('child_process');
   try {
-    execSync(`opencode --session ${sessionId}`, { stdio: 'inherit' });
+    execSync(`${opencodePath} --session ${sessionId}`, { stdio: 'inherit' });
   } catch (error) {
     console.error(i18n.t('results.launchFailed'));
   }
@@ -240,7 +307,6 @@ async function exportSession(sessionId: string): Promise<void> {
       return;
     }
 
-    const session = db.getSession(sessionId);
     const filename = `session-${sessionId.substring(0, 8)}-${Date.now()}.${format === 'json' ? 'json' : format === 'markdown' ? 'md' : 'txt'}`;
     const outputPath = path.join(process.cwd(), filename);
 
@@ -287,9 +353,7 @@ function formatAsMarkdown(data: any): string {
           const toolData = JSON.parse(part.data);
           md += `**Tool Call**: ${toolData.name}\n`;
           md += `\`\`\`json\n${JSON.stringify(toolData.arguments, null, 2)}\n\`\`\`\n\n`;
-        } catch {
-          // ignore parse error
-        }
+        } catch {}
       }
     }
   }
@@ -325,7 +389,7 @@ function formatAsText(data: any): string {
   return text;
 }
 
-async function backupSessions(options: BackupOptions): Promise<void> {
+async function backupSessions(options: { includeAll: boolean; sessionIds?: string[] }): Promise<void> {
   if (!db.connect()) {
     console.error(i18n.t('errors.databaseConnectionFailed'));
     process.exit(1);
@@ -364,18 +428,9 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0];
 
-  if (command === 'lang' || command === 'language') {
+  const configPath = path.join(os.homedir(), '.config', 'opencode', 'ocsm-lang.json');
+  if (!fs.existsSync(configPath) && command !== 'lang') {
     await selectLanguage();
-    return;
-  }
-
-  try {
-    const configPath = path.join(require('os').homedir(), '.config', 'opencode', 'ocsm-lang.json');
-    if (!fs.existsSync(configPath)) {
-      await selectLanguage();
-    }
-  } catch {
-    // ignore
   }
 
   switch (command) {
@@ -386,6 +441,10 @@ async function main(): Promise<void> {
     case 'select':
     case undefined:
       await selectSession();
+      break;
+
+    case 'search':
+      await searchSessions();
       break;
 
     case 'resume':
@@ -408,8 +467,12 @@ async function main(): Promise<void> {
       await backupSessions({
         includeAll: args.includes('--all'),
         sessionIds: args.slice(1).filter(a => !a.startsWith('--')),
-        compress: args.includes('--compress'),
       });
+      break;
+
+    case 'lang':
+    case 'language':
+      await selectLanguage();
       break;
 
     case 'help':
@@ -424,6 +487,7 @@ ${i18n.getLanguage() === 'zh' ? '用法' : 'Usage'}:
 ${i18n.getLanguage() === 'zh' ? '命令' : 'Commands'}:
   list                    ${i18n.t('cli.list')}
   select                  ${i18n.t('cli.select')}
+  search                  ${i18n.getLanguage() === 'zh' ? '搜索会话' : 'Search sessions'}
   resume <session-id>     ${i18n.t('cli.resume')}
   export <session-id>     ${i18n.t('cli.exportCmd')}
   backup [options]        ${i18n.t('cli.backup')}
@@ -432,11 +496,11 @@ ${i18n.getLanguage() === 'zh' ? '命令' : 'Commands'}:
 
 ${i18n.getLanguage() === 'zh' ? '选项' : 'Options'}:
   --all                   ${i18n.t('tools.allParam')}
-  --compress              ${i18n.getLanguage() === 'zh' ? '压缩备份文件' : 'Compress backup files'}
 
 ${i18n.getLanguage() === 'zh' ? '示例' : 'Examples'}:
   ocsm list
   ocsm select
+  ocsm search
   ocsm resume abc123
   ocsm export abc123
   ocsm backup --all

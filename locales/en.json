@@ -1,0 +1,85 @@
+{
+  "cli": {
+    "help": "Show help information",
+    "list": "List recent sessions",
+    "select": "Interactive session selection",
+    "resume": "Resume a specific session",
+    "exportCmd": "Export session",
+    "backup": "Backup sessions",
+    "exit": "Exit",
+    "back": "Back"
+  },
+  "prompts": {
+    "selectAction": "Select action:",
+    "selectSession": "Select session:",
+    "searchQuery": "Enter search query:",
+    "confirmResume": "Are you sure you want to resume this session?",
+    "selectExportFormat": "Select export format:",
+    "enterSessionId": "Enter session ID:",
+    "noSessionsFound": "No sessions found",
+    "noResultsFound": "No matching results found"
+  },
+  "results": {
+    "sessionList": "Session List",
+    "foundSessions": "Found {count} sessions",
+    "sessionNotFound": "Session {id} not found",
+    "exportSuccess": "Session exported to: {path}",
+    "exportFailed": "Failed to export session",
+    "backupSuccess": "Backup completed: {path}\nContains {count} sessions",
+    "backupFailed": "Failed to backup sessions",
+    "launchSuccess": "Launching OpenCode and resuming session: {title}",
+    "launchFailed": "Failed to launch OpenCode. Please ensure OpenCode is installed",
+    "databaseConnected": "Database connected successfully",
+    "databaseDisconnected": "Database disconnected successfully",
+    "databaseError": "Database error: {error}"
+  },
+  "session": {
+    "title": "Title",
+    "id": "ID",
+    "messageCount": "Messages",
+    "createdAt": "Created",
+    "updatedAt": "Updated",
+    "tokensInput": "Input Tokens",
+    "tokensOutput": "Output Tokens",
+    "preview": "Preview",
+    "untitled": "Untitled"
+  },
+  "tools": {
+    "sessionListDesc": "List all sessions with search and pagination support",
+    "sessionSearchDesc": "Search session content by title and message content",
+    "sessionSwitchDesc": "Switch to a specific session",
+    "sessionInfoDesc": "Get detailed session information",
+    "sessionExportDesc": "Export session as JSON format",
+    "sessionBackupDesc": "Backup sessions",
+    "limitParam": "Number of sessions to return, default 20",
+    "searchParam": "Search query",
+    "sessionIdParam": "Target session ID",
+    "forkParam": "Create a fork, default false",
+    "outputPathParam": "Output file path",
+    "allParam": "Backup all sessions"
+  },
+  "errors": {
+    "databaseNotFound": "Database not found: {path}",
+    "databaseConnectionFailed": "Failed to connect to OpenCode database",
+    "sessionNotExist": "Session {id} does not exist",
+    "invalidSessionId": "Please provide a valid session ID",
+    "exportFailed": "Failed to export session",
+    "backupFailed": "Failed to backup session",
+    "launchFailed": "Failed to launch OpenCode",
+    "unknownCommand": "Unknown command: {command}"
+  },
+  "exportFormats": {
+    "json": "JSON (Full data)",
+    "markdown": "Markdown (Readable format)",
+    "text": "Plain text"
+  },
+  "common": {
+    "yes": "Yes",
+    "no": "No",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "success": "Success",
+    "error": "Error"
+  }
+}

@@ -1,9 +1,35 @@
 import { tool } from "@opencode-ai/plugin";
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
+import { execSync } from 'child_process';
 import { OpenCodeDB } from './db.js';
-import { PluginOptions, ExportOptions, BackupOptions } from './types.js';
+import { PluginOptions } from './types.js';
 import { i18n } from './i18n.js';
+
+function findOpenCode(): string | null {
+  const candidates = ['opencode'];
+  
+  for (const cmd of candidates) {
+    try {
+      const result = execSync(`which ${cmd}`, { encoding: 'utf-8', stdio: 'pipe' });
+      if (result.trim()) return result.trim();
+    } catch {}
+  }
+  
+  const commonPaths = [
+    path.join(os.homedir(), '.local', 'bin', 'opencode'),
+    path.join(os.homedir(), '.cargo', 'bin', 'opencode'),
+    '/usr/local/bin/opencode',
+    '/usr/bin/opencode',
+  ];
+  
+  for (const p of commonPaths) {
+    if (fs.existsSync(p)) return p;
+  }
+  
+  return null;
+}
 
 export const SessionPickerPlugin = async (ctx: any) => {
   const options: PluginOptions = ctx.options || {};
@@ -89,7 +115,7 @@ export const SessionPickerPlugin = async (ctx: any) => {
                 : `Found ${matchingMessages.length} matching messages in session`;
             }
 
-            const sessions = db.searchSessions(query);
+            const sessions = db.searchSessionsWithRelevance(query);
             if (sessions.length === 0) {
               return i18n.getLanguage() === 'zh'
                 ? `没有找到包含 "${query}" 的会话`
@@ -129,9 +155,11 @@ export const SessionPickerPlugin = async (ctx: any) => {
             }
 
             const title = session.title || i18n.t('session.untitled');
+            const opencodePath = findOpenCode();
+            const cmd = opencodePath || 'opencode';
             const command = fork 
-              ? `opencode --session ${session_id} --fork`
-              : `opencode --session ${session_id}`;
+              ? `${cmd} --session ${session_id} --fork`
+              : `${cmd} --session ${session_id}`;
 
             return i18n.getLanguage() === 'zh'
               ? `已切换到会话 "${title}"\n\n请在终端中运行以下命令继续会话:\n${command}`
