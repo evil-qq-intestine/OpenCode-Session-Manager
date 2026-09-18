@@ -3,14 +3,13 @@
   "version": "0.1.2",
   "description": "OCSM - OpenCode Session Manager. Select and manage sessions from any directory.",
   "type": "module",
-  "main": "dist/index.mjs",
+  "main": "dist/index.js",
   "bin": {
     "ocsm": "./dist/cli.js",
     "ocsm-setup": "./dist/setup.js"
   },
   "scripts": {
     "build": "tsc",
-    "bundle": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.mjs --external:@opencode-ai/plugin",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "setup": "node dist/setup.js"
