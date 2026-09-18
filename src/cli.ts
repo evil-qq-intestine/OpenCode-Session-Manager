@@ -11,6 +11,9 @@ import { SessionPreview } from './types.js';
 import { i18n, Language, getAvailableLanguages } from './i18n.js';
 
 const db = new OpenCodeDB();
+const GREEN = '\x1b[32m';
+const DIM = '\x1b[2m';
+const RESET = '\x1b[0m';
 
 function formatDate(date: Date): string {
   return date.toLocaleString(i18n.getLanguage() === 'zh' ? 'zh-CN' : 'en-US', {
@@ -20,6 +23,12 @@ function formatDate(date: Date): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function highlightMatch(text: string, query: string): string {
+  if (!query) return text;
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  return text.replace(regex, `${GREEN}$1${RESET}`);
 }
 
 function findOpenCode(): string | null {
@@ -69,6 +78,23 @@ async function selectLanguage(): Promise<void> {
   console.log(`\n${language === 'zh' ? '已选择中文' : 'Language set to ' + (languageNames[language] || language)}\n`);
 }
 
+function displaySessions(sessions: any[], query?: string): void {
+  if (sessions.length === 0) {
+    console.log(i18n.t('prompts.noSessionsFound'));
+    return;
+  }
+
+  console.log(`\n=== ${i18n.t('results.sessionList')} ===\n`);
+  sessions.forEach((session, index) => {
+    const title = session.title || i18n.t('session.untitled');
+    const displayTitle = query ? highlightMatch(title, query) : title;
+    const preview = session.preview ? ` - ${session.preview.substring(0, 50)}...` : '';
+    const dim = index % 2 !== 0 ? DIM : '';
+    const reset = index % 2 !== 0 ? RESET : '';
+    console.log(`${dim}[${index + 1}] ${displayTitle} (${session.messageCount || 0} ${i18n.t('session.messageCount').toLowerCase()}, ${formatDate(new Date((session.time_updated || session.updatedAt?.getTime() / 1000) * 1000))})${preview}${reset}`);
+  });
+}
+
 async function listSessions(): Promise<void> {
   if (!db.connect()) {
     console.error(i18n.t('errors.databaseConnectionFailed'));
@@ -77,19 +103,7 @@ async function listSessions(): Promise<void> {
 
   try {
     const sessions = db.getSessionsWithPreview(20);
-
-    if (sessions.length === 0) {
-      console.log(i18n.t('prompts.noSessionsFound'));
-      return;
-    }
-
-    console.log(`\n=== ${i18n.t('results.sessionList')} ===\n`);
-    sessions.forEach((session, index) => {
-      const preview = session.preview ? ` - ${session.preview.substring(0, 50)}...` : '';
-      const dim = index % 2 !== 0 ? '\x1b[2m' : '';
-      const reset = index % 2 !== 0 ? '\x1b[0m' : '';
-      console.log(`${dim}[${index + 1}] ${session.title} (${session.messageCount} ${i18n.t('session.messageCount').toLowerCase()}, ${formatDate(session.updatedAt)})${preview}${reset}`);
-    });
+    displaySessions(sessions);
   } finally {
     db.disconnect();
   }
@@ -109,54 +123,6 @@ async function selectSession(): Promise<void> {
       return;
     }
 
-    const { action } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'action',
-        message: i18n.t('prompts.selectAction'),
-        choices: [
-          { name: i18n.getLanguage() === 'zh' ? '选择会话继续' : 'Select session to resume', value: 'select' },
-          { name: i18n.getLanguage() === 'zh' ? '搜索会话' : 'Search sessions', value: 'search' },
-          { name: i18n.getLanguage() === 'zh' ? '导出会话' : 'Export session', value: 'export' },
-          { name: i18n.t('cli.exit'), value: 'exit' },
-        ],
-      },
-    ]);
-
-    if (action === 'exit') {
-      return;
-    }
-
-    if (action === 'search') {
-      await searchSessions();
-      return;
-    }
-
-    if (action === 'export') {
-      const { selectedId } = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'selectedId',
-          message: i18n.getLanguage() === 'zh' ? '选择要导出的会话:' : 'Select session to export:',
-          choices: [
-            ...sessions.map((s, i) => ({
-              name: `${i % 2 === 0 ? '' : '\x1b[2m'}[${i + 1}] ${s.title} (${s.messageCount} ${i18n.t('session.messageCount').toLowerCase()}, ${formatDate(s.updatedAt)})${i % 2 === 0 ? '' : '\x1b[0m'}`,
-              value: s.id,
-            })),
-            new inquirer.Separator(),
-            { name: i18n.getLanguage() === 'zh' ? '退出' : 'Exit', value: '__exit__' },
-          ],
-        },
-      ]);
-
-      if (selectedId === '__exit__') {
-        return;
-      }
-
-      await exportSession(selectedId);
-      return;
-    }
-
     const { selectedId } = await inquirer.prompt([
       {
         type: 'list',
@@ -164,7 +130,7 @@ async function selectSession(): Promise<void> {
         message: i18n.t('prompts.selectSession'),
         choices: [
           ...sessions.map((s, i) => ({
-            name: `${i % 2 === 0 ? '' : '\x1b[2m'}[${i + 1}] ${s.title} (${s.messageCount} ${i18n.t('session.messageCount').toLowerCase()}, ${formatDate(s.updatedAt)})${i % 2 === 0 ? '' : '\x1b[0m'}`,
+            name: `${i % 2 === 0 ? '' : DIM}[${i + 1}] ${s.title} (${s.messageCount} ${i18n.t('session.messageCount').toLowerCase()}, ${formatDate(s.updatedAt)})${i % 2 === 0 ? '' : RESET}`,
             value: s.id,
           })),
           new inquirer.Separator(),
@@ -206,30 +172,63 @@ async function searchSessions(): Promise<void> {
       output: process.stdout,
     });
 
-    const query = await new Promise<string>((resolve) => {
-      rl.question(`${i18n.t('prompts.searchQuery')} `, (answer) => {
-        rl.close();
-        resolve(answer);
-      });
+    process.stdout.write(`${i18n.t('prompts.searchQuery')} `);
+    process.stdin.setRawMode?.(true);
+    process.stdin.resume();
+    process.stdin.setEncoding('utf8');
+
+    let query = '';
+    let results: any[] = [];
+
+    const displayResults = () => {
+      process.stdout.write('\r\x1b[K');
+      if (query) {
+        results = db.searchSessionsWithRelevance(query);
+        if (results.length > 0) {
+          console.log(`\n${i18n.getLanguage() === 'zh' ? '找到' : 'Found'} ${results.length} ${i18n.getLanguage() === 'zh' ? '个结果' : 'results'}:\n`);
+          results.slice(0, 10).forEach((s, i) => {
+            const title = highlightMatch(s.title || i18n.t('session.untitled'), query);
+            const dim = i % 2 !== 0 ? DIM : '';
+            const reset = i % 2 !== 0 ? RESET : '';
+            console.log(`${dim}[${i + 1}] ${title} (${formatDate(new Date(s.time_updated * 1000))})${reset}`);
+          });
+        } else {
+          console.log(`\n${i18n.t('prompts.noResultsFound')}`);
+        }
+      }
+      process.stdout.write(`${i18n.t('prompts.searchQuery')} ${query}`);
+    };
+
+    await new Promise<void>((resolve) => {
+      const onData = (char: string) => {
+        if (char === '\n' || char === '\r') {
+          process.stdin.removeListener('data', onData);
+          process.stdin.setRawMode?.(false);
+          process.stdin.pause();
+          rl.close();
+          resolve();
+        } else if (char === '\x7f' || char === '\b') {
+          query = query.slice(0, -1);
+          displayResults();
+        } else if (char === '\x03') {
+          process.exit(0);
+        } else {
+          query += char;
+          displayResults();
+        }
+      };
+
+      process.stdin.on('data', onData);
+      displayResults();
     });
 
     if (!query.trim()) {
       return;
     }
 
-    const results = db.searchSessionsWithRelevance(query);
-    
     if (results.length === 0) {
-      console.log(i18n.t('prompts.noResultsFound'));
       return;
     }
-
-    console.log(`\n${i18n.getLanguage() === 'zh' ? '找到' : 'Found'} ${results.length} ${i18n.getLanguage() === 'zh' ? '个结果' : 'results'}:\n`);
-    results.forEach((s, i) => {
-      const dim = i % 2 !== 0 ? '\x1b[2m' : '';
-      const reset = i % 2 !== 0 ? '\x1b[0m' : '';
-      console.log(`${dim}[${i + 1}] ${s.title || i18n.t('session.untitled')} (${formatDate(new Date(s.time_updated * 1000))})${reset}`);
-    });
 
     const { selectedId } = await inquirer.prompt([
       {
@@ -237,8 +236,8 @@ async function searchSessions(): Promise<void> {
         name: 'selectedId',
         message: i18n.t('prompts.selectSession'),
         choices: [
-          ...results.map((s, i) => ({
-            name: `${i % 2 === 0 ? '' : '\x1b[2m'}[${i + 1}] ${s.title || i18n.t('session.untitled')} (${formatDate(new Date(s.time_updated * 1000))})${i % 2 === 0 ? '' : '\x1b[0m'}`,
+          ...results.slice(0, 10).map((s, i) => ({
+            name: `${i % 2 === 0 ? '' : DIM}${highlightMatch(s.title || i18n.t('session.untitled'), query)} (${formatDate(new Date(s.time_updated * 1000))})${i % 2 === 0 ? '' : RESET}`,
             value: s.id,
           })),
           new inquirer.Separator(),
