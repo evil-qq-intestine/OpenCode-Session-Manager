@@ -1,0 +1,57 @@
+{
+  "name": "opencode-ocsm",
+  "version": "0.1.0",
+  "description": "OCSM - OpenCode Session Manager. Select and manage sessions from any directory.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "ocsm": "./dist/cli.js",
+    "ocsm-setup": "./dist/setup.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "setup": "node dist/setup.js"
+  },
+  "keywords": [
+    "opencode",
+    "plugin",
+    "session",
+    "manager",
+    "cli"
+  ],
+  "author": "evil-qq-intestine",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/evil-qq-intestine/OpenCode-Session-Manager"
+  },
+  "bugs": {
+    "url": "https://github.com/evil-qq-intestine/OpenCode-Session-Manager/issues"
+  },
+  "homepage": "https://github.com/evil-qq-intestine/OpenCode-Session-Manager#readme",
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "inquirer": "^9.0.0"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "^1.18.31",
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/inquirer": "^9.0.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": ">=1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@opencode-ai/plugin": {
+      "optional": true
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}
