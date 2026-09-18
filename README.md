@@ -28,7 +28,7 @@ Add to `~/.config/opencode/opencode.jsonc`:
 
 ```json
 {
-  "plugin": ["file:///path/to/opencode-session-picker"]
+  "plugin": ["opencode-ocsm"]
 }
 ```
 
