@@ -50,11 +50,13 @@ ocsm list             # list recent sessions
 ocsm select           # interactive session picker with search
 ocsm resume <id>      # resume a session
 ocsm export <id>      # export session (JSON, bundle, markdown, text)
-ocsm import <file>    # import session from JSON or bundle
+ocsm import <file>    # import session from JSON (only JSON supported to ensure session integrity)
 ocsm backup --all     # backup all sessions
 ocsm lang             # switch language
 ocsm help             # show help
 ```
+
+> **Note**: Import only supports JSON format to ensure session integrity and preserve all metadata.
 
 ### TUI tools
 
@@ -67,7 +69,7 @@ Available in OpenCode for the AI to call:
 | `session_switch` | Switch to a session |
 | `session_info` | Get session details |
 | `session_export` | Export session as JSON or bundle |
-| `session_import` | Import session from JSON file |
+| `session_import` | Import session from JSON file (JSON only to ensure integrity) |
 | `session_backup` | Backup sessions |
 
 ### Examples
