@@ -136,6 +136,7 @@ async function selectSession(): Promise<void> {
             { name: i18n.getLanguage() === 'zh' ? '搜索会话（仅标题）' : 'Search sessions (title only)', value: 'searchTitle' },
             { name: i18n.getLanguage() === 'zh' ? '搜索会话（全部内容）' : 'Search sessions (all content)', value: 'searchAll' },
             { name: i18n.getLanguage() === 'zh' ? '导出会话' : 'Export session', value: 'export' },
+            { name: i18n.getLanguage() === 'zh' ? '导入会话' : 'Import session', value: 'import' },
             new inquirer.Separator(),
             { name: i18n.t('cli.exit'), value: 'exit' },
           ],
@@ -153,6 +154,20 @@ async function selectSession(): Promise<void> {
 
       if (action === 'searchAll') {
         await searchSessions(false);
+        continue;
+      }
+
+      if (action === 'import') {
+        const { filePath } = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'filePath',
+            message: i18n.getLanguage() === 'zh' ? '输入导入文件路径:' : 'Enter import file path:',
+          },
+        ]);
+        if (filePath) {
+          await importSession(filePath);
+        }
         continue;
       }
 
