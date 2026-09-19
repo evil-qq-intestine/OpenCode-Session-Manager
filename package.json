@@ -9,7 +9,7 @@
     "ocsm-setup": "./dist/setup.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/cli.js dist/setup.js",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "setup": "node dist/setup.js"
