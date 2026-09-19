@@ -75,6 +75,29 @@ export class OpenCodeDB {
     `).get(id) || null;
   }
 
+  getChildSessions(parentId: string): any[] {
+    return this.db!.prepare(`
+      SELECT s.*, 
+        (SELECT COUNT(*) FROM message WHERE session_id = s.id) as message_count
+      FROM session s 
+      WHERE s.parent_id = ?
+      ORDER BY s.time_created ASC
+    `).all(parentId);
+  }
+
+  getSessionTree(id: string): any | null {
+    const session = this.getSession(id);
+    if (!session) return null;
+
+    const children = this.getChildSessions(id);
+    const childrenWithSubtrees = children.map(child => this.getSessionTree(child.id));
+
+    return {
+      ...session,
+      children: childrenWithSubtrees,
+    };
+  }
+
   getSessionMessages(sessionId: string, limit?: number): any[] {
     let query = 'SELECT * FROM message WHERE session_id = ? ORDER BY time_created ASC';
     const params: any[] = [sessionId];

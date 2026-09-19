@@ -636,6 +636,28 @@ async function cloudPush(): Promise<void> {
     const session = db.getSession(selectedId);
     const sessionDir = session?.directory || session?.path;
 
+    // Check for child sessions
+    const childSessions = db.getChildSessions(selectedId);
+    let includeTree = true;
+
+    if (childSessions.length > 0) {
+      console.log(`\n${i18n.getLanguage() === 'zh' ? `检测到 ${childSessions.length} 个子会话` : `Detected ${childSessions.length} child sessions`}`);
+      
+      const { exportScope } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'exportScope',
+          message: i18n.getLanguage() === 'zh' ? '选择导出范围:' : 'Select export scope:',
+          choices: [
+            { name: i18n.getLanguage() === 'zh' ? `仅当前会话 (1 个会话)` : `Current session only (1 session)`, value: 'single' },
+            { name: i18n.getLanguage() === 'zh' ? `整个会话树 (${1 + childSessions.length} 个会话)` : `Full tree (${1 + childSessions.length} sessions)`, value: 'tree' },
+          ],
+        },
+      ]);
+      
+      includeTree = exportScope === 'tree';
+    }
+
     // Detect code repo
     let codeRepoInfo = '';
     if (sessionDir) {
@@ -673,7 +695,7 @@ async function cloudPush(): Promise<void> {
 
     console.log(`\n${i18n.getLanguage() === 'zh' ? '正在导出会话...' : 'Exporting session...'}`);
 
-    const result = await cloud.pushSession(selectedId, repoUrl);
+    const result = await cloud.pushSession(selectedId, repoUrl, includeTree);
 
     if (result.success) {
       console.log(`\n✓ ${i18n.t('results.cloudPushSuccess', { repo: result.repoUrl || '' })}`);

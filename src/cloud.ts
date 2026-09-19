@@ -11,10 +11,17 @@ export interface CodeRepoInfo {
   commit: string;
 }
 
+export interface SessionNode {
+  id: string;
+  title: string | null;
+  messages: any[];
+  children: SessionNode[];
+}
+
 export interface CloudSessionFile {
   version: string;
-  session: any;
-  messages: any[];
+  root_session: any;
+  session_tree: SessionNode;
   code_repo?: CodeRepoInfo;
   exported_at: string;
   exported_by: string;
@@ -24,6 +31,7 @@ export interface CloudSessionPreview {
   id: string;
   title: string;
   messageCount: number;
+  childCount: number;
   exportedAt: string;
   hasCodeRepo: boolean;
 }
@@ -160,11 +168,33 @@ export class CloudManager {
     for (const file of result.files) {
       try {
         const content = JSON.parse(fs.readFileSync(file, 'utf-8'));
-        if (content.session && content.messages) {
+        
+        // Support both v1.0 (flat) and v2.0 (tree) formats
+        if (content.version === '2.0' && content.root_session && content.session_tree) {
+          const countMessages = (node: any): number => {
+            let count = node.messages?.length || 0;
+            if (node.children) {
+              for (const child of node.children) {
+                count += countMessages(child);
+              }
+            }
+            return count;
+          };
+          sessions.push({
+            id: content.root_session.id,
+            title: content.root_session.title || 'Untitled',
+            messageCount: countMessages(content.session_tree),
+            childCount: content.session_tree.children?.length || 0,
+            exportedAt: content.exported_at,
+            hasCodeRepo: !!content.code_repo,
+          });
+        } else if (content.session && content.messages) {
+          // Legacy v1.0 format
           sessions.push({
             id: content.session.id,
             title: content.session.title || 'Untitled',
             messageCount: content.messages.length,
+            childCount: 0,
             exportedAt: content.exported_at,
             hasCodeRepo: !!content.code_repo,
           });
@@ -180,7 +210,7 @@ export class CloudManager {
     return { success: true, sessions };
   }
 
-  async pushSession(sessionId: string, repoUrl?: string): Promise<{ success: boolean; repoUrl?: string; error?: string }> {
+  async pushSession(sessionId: string, repoUrl?: string, includeTree: boolean = true): Promise<{ success: boolean; repoUrl?: string; error?: string }> {
     const db = new OpenCodeDB();
     if (!db.connect()) {
       return { success: false, error: 'Database connection failed' };
@@ -198,6 +228,34 @@ export class CloudManager {
         parts: db.getMessageParts(msg.id),
       }));
 
+      // Build session tree
+      const buildSessionNode = (sess: any): SessionNode => {
+        const sessMessages = db.getSessionMessages(sess.id);
+        const sessMessagesWithParts = sessMessages.map((msg: any) => ({
+          ...msg,
+          parts: db.getMessageParts(msg.id),
+        }));
+        const children = db.getChildSessions(sess.id);
+        return {
+          id: sess.id,
+          title: sess.title,
+          messages: sessMessagesWithParts,
+          children: children.map(child => buildSessionNode(child)),
+        };
+      };
+
+      const sessionTree: SessionNode = {
+        id: session.id,
+        title: session.title,
+        messages: messagesWithParts,
+        children: [],
+      };
+
+      if (includeTree) {
+        const childSessions = db.getChildSessions(sessionId);
+        sessionTree.children = childSessions.map(child => buildSessionNode(child));
+      }
+
       // Detect code repo
       let codeRepo: CodeRepoInfo | undefined;
       const sessionDir = session.directory || session.path;
@@ -206,9 +264,9 @@ export class CloudManager {
       }
 
       const cloudFile: CloudSessionFile = {
-        version: '1.0',
-        session,
-        messages: messagesWithParts,
+        version: '2.0',
+        root_session: session,
+        session_tree: sessionTree,
         code_repo: codeRepo,
         exported_at: new Date().toISOString(),
         exported_by: `ocsm/${this.getVersion()}`,
@@ -257,6 +315,10 @@ export class CloudManager {
     const targetFile = result.files.find(f => {
       try {
         const content = JSON.parse(fs.readFileSync(f, 'utf-8'));
+        // Support both v1.0 and v2.0 formats
+        if (content.version === '2.0') {
+          return content.root_session?.id === sessionId;
+        }
         return content.session?.id === sessionId;
       } catch {
         return false;
@@ -273,6 +335,40 @@ export class CloudManager {
     const content = JSON.parse(fs.readFileSync(targetFile, 'utf-8'));
     const codeRepo = content.code_repo;
 
+    // Convert v2.0 format to importable format
+    let importData: any;
+    if (content.version === '2.0' && content.session_tree) {
+      // Flatten the session tree for import
+      const flattenTree = (node: any, parentId: string | null = null): any[] => {
+        const result: any[] = [];
+        const sessionData = {
+          ...node,
+          parent_id: parentId,
+          messages: node.messages || [],
+        };
+        result.push(sessionData);
+        if (node.children) {
+          for (const child of node.children) {
+            result.push(...flattenTree(child, node.id));
+          }
+        }
+        return result;
+      };
+
+      const flatSessions = flattenTree(content.session_tree);
+      importData = {
+        version: '2.0',
+        sessions: flatSessions,
+        root_session_id: content.root_session?.id || content.session_tree.id,
+        code_repo: content.code_repo,
+        exported_at: content.exported_at,
+        exported_by: content.exported_by,
+      };
+    } else {
+      // Legacy v1.0 format
+      importData = content;
+    }
+
     // Import session
     const { OpenCodeDBWrite } = await import('./db-write.js');
     const dbWrite = new OpenCodeDBWrite();
@@ -285,7 +381,7 @@ export class CloudManager {
 
     try {
       const tempFile = path.join(os.tmpdir(), `ocsm-import-${Date.now()}.json`);
-      fs.writeFileSync(tempFile, JSON.stringify(content, null, 2), 'utf-8');
+      fs.writeFileSync(tempFile, JSON.stringify(importData, null, 2), 'utf-8');
       const newSessionId = dbWrite.importSession(tempFile);
       fs.unlinkSync(tempFile);
 

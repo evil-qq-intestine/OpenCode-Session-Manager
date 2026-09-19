@@ -46,32 +46,9 @@ export class OpenCodeDBWrite {
     return prefix + randomBytes(12).toString('hex');
   }
 
-  importSession(filePath: string): string {
-    if (!this.db) {
-      throw new Error('Database not connected');
-    }
-
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`File not found: ${filePath}`);
-    }
-
-    const content = fs.readFileSync(filePath, 'utf-8');
-    let data: any;
-
-    try {
-      data = JSON.parse(content);
-    } catch {
-      throw new Error('Invalid JSON file');
-    }
-
-    if (!data.session || !data.messages) {
-      throw new Error('JSON file missing session or messages data');
-    }
-
-    const newSessionId = this.generateId('ses_');
-    const session = data.session;
+  private insertSession(session: any, newId: string, parentId: string | null = null): void {
     const now = Math.floor(Date.now() / 1000);
-
+    
     this.db!.prepare(`
       INSERT INTO session (
         id, project_id, workspace_id, parent_id, slug, directory, path,
@@ -91,10 +68,10 @@ export class OpenCodeDBWrite {
         ?, ?, ?, ?
       )
     `).run(
-      newSessionId,
+      newId,
       'global',
       session.workspace_id || null,
-      session.parent_id || null,
+      parentId || session.parent_id || null,
       session.slug || '',
       session.directory || '',
       session.path || null,
@@ -121,8 +98,10 @@ export class OpenCodeDBWrite {
       session.time_compacting || null,
       session.time_archived || null,
     );
+  }
 
-    for (const msg of data.messages) {
+  private insertMessages(messages: any[], sessionId: string): void {
+    for (const msg of messages) {
       const newMsgId = this.generateId('msg_');
       const parts = msg.parts || [];
 
@@ -131,7 +110,7 @@ export class OpenCodeDBWrite {
         VALUES (?, ?, ?, ?, ?)
       `).run(
         newMsgId,
-        newSessionId,
+        sessionId,
         msg.time_created || null,
         msg.time_updated || null,
         msg.data || null,
@@ -145,14 +124,73 @@ export class OpenCodeDBWrite {
         `).run(
           newPartId,
           newMsgId,
-          newSessionId,
+          sessionId,
           part.time_created || null,
           part.time_updated || null,
           part.data || null,
         );
       }
     }
+  }
+
+  importSession(filePath: string): string {
+    if (!this.db) {
+      throw new Error('Database not connected');
+    }
+
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    const content = fs.readFileSync(filePath, 'utf-8');
+    let data: any;
+
+    try {
+      data = JSON.parse(content);
+    } catch {
+      throw new Error('Invalid JSON file');
+    }
+
+    // Support v2.0 format (session tree)
+    if (data.version === '2.0' && data.sessions) {
+      return this.importSessionTree(data);
+    }
+
+    // Legacy v1.0 format
+    if (!data.session || !data.messages) {
+      throw new Error('JSON file missing session or messages data');
+    }
+
+    const newSessionId = this.generateId('ses_');
+    this.insertSession(data.session, newSessionId);
+    this.insertMessages(data.messages, newSessionId);
 
     return newSessionId;
+  }
+
+  private importSessionTree(data: any): string {
+    const sessions = data.sessions;
+    const rootSessionId = data.root_session_id;
+
+    // Build a map of old ID -> new ID
+    const idMap = new Map<string, string>();
+
+    // First pass: insert all sessions
+    for (const sess of sessions) {
+      const newId = this.generateId('ses_');
+      idMap.set(sess.id, newId);
+    }
+
+    // Second pass: insert sessions with correct parent IDs and messages
+    for (const sess of sessions) {
+      const newId = idMap.get(sess.id)!;
+      const newParentId = sess.parent_id ? idMap.get(sess.parent_id) || null : null;
+      
+      this.insertSession(sess, newId, newParentId);
+      this.insertMessages(sess.messages || [], newId);
+    }
+
+    // Return the new root session ID
+    return idMap.get(rootSessionId) || idMap.values().next().value;
   }
 }
