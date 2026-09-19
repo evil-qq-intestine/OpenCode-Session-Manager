@@ -60,3 +60,31 @@ export interface BackupOptions {
   sessionIds?: string[];
   compress: boolean;
 }
+
+export interface CodeRepoInfo {
+  url: string;
+  branch: string;
+  commit: string;
+}
+
+export interface CloudSessionFile {
+  version: string;
+  session: any;
+  messages: any[];
+  code_repo?: CodeRepoInfo;
+  exported_at: string;
+  exported_by: string;
+}
+
+export interface CloudSessionPreview {
+  id: string;
+  title: string;
+  messageCount: number;
+  exportedAt: string;
+  hasCodeRepo: boolean;
+}
+
+export interface CloudConfig {
+  username?: string;
+  repo?: string;
+}

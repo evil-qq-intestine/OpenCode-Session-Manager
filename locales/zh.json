@@ -7,6 +7,11 @@
     "exportCmd": "导出会话",
     "importCmd": "导入会话",
     "backup": "备份会话",
+    "cloud": "云端同步",
+    "cloudPush": "导出会话到云端",
+    "cloudPull": "从云端导入会话",
+    "cloudList": "列出云端会话",
+    "cloudSetup": "配置云端设置",
     "exit": "退出",
     "back": "返回"
   },
@@ -20,7 +25,13 @@
     "noSessionsFound": "没有找到会话",
     "noResultsFound": "没有找到匹配的结果",
     "confirmImport": "确定要导入此会话吗?",
-    "importPreview": "导入预览:"
+    "importPreview": "导入预览:",
+    "enterRepoUrl": "请输入仓库地址:",
+    "enterRepoName": "请输入仓库名称（留空自动创建）:",
+    "confirmCloneCode": "检测到代码仓库引用: {repo}\n是否 clone 代码? (y/n):",
+    "selectCloudSession": "选择要导入的会话:",
+    "cloudSetupUsername": "请输入 GitHub 用户名:",
+    "cloudSetupRepo": "请输入默认仓库名（留空则自动生成）:"
   },
   "results": {
     "sessionList": "会话列表",
@@ -36,7 +47,22 @@
     "launchFailed": "启动 OpenCode 失败，请确保已安装 OpenCode",
     "databaseConnected": "数据库连接成功",
     "databaseDisconnected": "数据库断开成功",
-    "databaseError": "数据库错误: {error}"
+    "databaseError": "数据库错误: {error}",
+    "cloudPushSuccess": "会话已上传到云端\n仓库: {repo}",
+    "cloudPushFailed": "上传到云端失败",
+    "cloudPullSuccess": "会话导入成功，新 ID: {id}",
+    "cloudPullFailed": "从云端导入失败",
+    "cloudListSuccess": "云端会话列表:",
+    "cloudListFailed": "获取云端会话列表失败",
+    "cloudSetupSuccess": "云端配置已保存",
+    "cloudSetupFailed": "云端配置失败",
+    "cloudNoGhCli": "未检测到 gh CLI 或未登录\n请先安装: https://cli.github.com/",
+    "cloudRepoCreated": "已创建私有仓库: {repo}",
+    "cloudRepoCreateFailed": "创建仓库失败: {error}",
+    "cloudDetectCodeRepo": "检测到 GitHub 仓库: {repo} ({branch}@{commit})",
+    "cloudNoCodeRepo": "未检测到 GitHub 仓库，只能导出会话",
+    "cloudCloneSuccess": "代码已 clone 到: {path}",
+    "cloudCloneFailed": "clone 代码失败: {error}"
   },
   "session": {
     "title": "标题",

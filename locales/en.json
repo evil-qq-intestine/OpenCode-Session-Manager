@@ -7,6 +7,11 @@
     "exportCmd": "Export session",
     "importCmd": "Import session",
     "backup": "Backup sessions",
+    "cloud": "Cloud sync",
+    "cloudPush": "Push session to cloud",
+    "cloudPull": "Pull session from cloud",
+    "cloudList": "List cloud sessions",
+    "cloudSetup": "Setup cloud config",
     "exit": "Exit",
     "back": "Back"
   },
@@ -20,7 +25,13 @@
     "noSessionsFound": "No sessions found",
     "noResultsFound": "No matching results found",
     "confirmImport": "Are you sure you want to import this session?",
-    "importPreview": "Import preview:"
+    "importPreview": "Import preview:",
+    "enterRepoUrl": "Enter repository URL:",
+    "enterRepoName": "Enter repository name (leave empty for auto-create):",
+    "confirmCloneCode": "Detected code repo reference: {repo}\nClone code? (y/n):",
+    "selectCloudSession": "Select session to import:",
+    "cloudSetupUsername": "Enter GitHub username:",
+    "cloudSetupRepo": "Enter default repo name (leave empty for auto-generate):"
   },
   "results": {
     "sessionList": "Session List",
@@ -36,7 +47,22 @@
     "launchFailed": "Failed to launch OpenCode. Please ensure OpenCode is installed",
     "databaseConnected": "Database connected successfully",
     "databaseDisconnected": "Database disconnected successfully",
-    "databaseError": "Database error: {error}"
+    "databaseError": "Database error: {error}",
+    "cloudPushSuccess": "Session pushed to cloud\nRepo: {repo}",
+    "cloudPushFailed": "Failed to push to cloud",
+    "cloudPullSuccess": "Session imported successfully, new ID: {id}",
+    "cloudPullFailed": "Failed to pull from cloud",
+    "cloudListSuccess": "Cloud session list:",
+    "cloudListFailed": "Failed to get cloud session list",
+    "cloudSetupSuccess": "Cloud config saved",
+    "cloudSetupFailed": "Cloud config failed",
+    "cloudNoGhCli": "gh CLI not found or not logged in\nPlease install: https://cli.github.com/",
+    "cloudRepoCreated": "Private repo created: {repo}",
+    "cloudRepoCreateFailed": "Failed to create repo: {error}",
+    "cloudDetectCodeRepo": "Detected GitHub repo: {repo} ({branch}@{commit})",
+    "cloudNoCodeRepo": "No GitHub repo detected, can only export session",
+    "cloudCloneSuccess": "Code cloned to: {path}",
+    "cloudCloneFailed": "Failed to clone code: {error}"
   },
   "session": {
     "title": "Title",

@@ -10,6 +10,7 @@ Session manager for OpenCode. List, search, resume, export and backup sessions f
 - **i18n**: Chinese and English support
 - **Export**: Save sessions as JSON, Markdown, or plain text
 - **Backup**: Batch backup all or selected sessions
+- **Cloud Sync**: Push sessions to GitHub private repo, pull and restore anywhere
 
 ## Install
 
@@ -52,6 +53,10 @@ ocsm resume <id>      # resume a session
 ocsm export <id>      # export session (JSON, bundle, markdown, text)
 ocsm import <file>    # import session from JSON (only JSON supported to ensure session integrity)
 ocsm backup --all     # backup all sessions
+ocsm cloud push       # push session to GitHub private repo
+ocsm cloud pull       # pull session from GitHub repo
+ocsm cloud list       # list sessions in GitHub repo
+ocsm cloud setup      # setup GitHub config
 ocsm lang             # switch language
 ocsm help             # show help
 ```
@@ -124,6 +129,35 @@ Plugin options in `~/.config/opencode/opencode.jsonc`:
 | `maxSessions` | number | 20 | Max sessions to display |
 
 Language config saved to `~/.config/opencode/ocsm-lang.json`.
+
+### Cloud Sync
+
+Cloud sync requires [GitHub CLI](https://cli.github.com/) installed and logged in.
+
+```bash
+# First time setup
+gh auth login
+ocsm cloud setup
+
+# Push session to cloud
+ocsm cloud push
+
+# Pull session from cloud
+ocsm cloud pull
+
+# List sessions in a cloud repo
+ocsm cloud list
+```
+
+When pushing:
+- Sessions are exported to a GitHub private repo
+- If the session's code is on GitHub, the repo URL is recorded in the JSON
+- If no GitHub repo is detected, only the session is exported
+
+When pulling:
+- Enter the repo URL to fetch sessions
+- Select which session to import
+- If a code repo is referenced, option to clone it locally
 
 ## Dependencies
 

@@ -8,6 +8,7 @@ import * as readline from 'readline';
 import { execSync } from 'child_process';
 import { OpenCodeDB } from './db.js';
 import { OpenCodeDBWrite } from './db-write.js';
+import { CloudManager } from './cloud.js';
 import { SessionPreview } from './types.js';
 import { i18n, Language, getAvailableLanguages } from './i18n.js';
 
@@ -138,6 +139,9 @@ async function selectSession(): Promise<void> {
             { name: i18n.getLanguage() === 'zh' ? '导出会话' : 'Export session', value: 'export' },
             { name: i18n.getLanguage() === 'zh' ? '导入会话' : 'Import session', value: 'import' },
             new inquirer.Separator(),
+            { name: i18n.getLanguage() === 'zh' ? '云端推送' : 'Cloud push', value: 'cloudPush' },
+            { name: i18n.getLanguage() === 'zh' ? '云端拉取' : 'Cloud pull', value: 'cloudPull' },
+            new inquirer.Separator(),
             { name: i18n.t('cli.exit'), value: 'exit' },
           ],
         },
@@ -168,6 +172,16 @@ async function selectSession(): Promise<void> {
         if (filePath) {
           await importSession(filePath);
         }
+        continue;
+      }
+
+      if (action === 'cloudPush') {
+        await cloudPush();
+        continue;
+      }
+
+      if (action === 'cloudPull') {
+        await cloudPull();
         continue;
       }
 
@@ -577,6 +591,258 @@ async function backupSessions(options: { includeAll: boolean; sessionIds?: strin
   }
 }
 
+async function cloudPush(): Promise<void> {
+  const cloud = new CloudManager();
+  const ghStatus = cloud.checkGhCli();
+
+  if (!ghStatus.available || !ghStatus.loggedIn) {
+    console.error(i18n.t('results.cloudNoGhCli'));
+    return;
+  }
+
+  if (!db.connect()) {
+    console.error(i18n.t('errors.databaseConnectionFailed'));
+    return;
+  }
+
+  try {
+    const sessions = db.getSessionsWithPreview(50);
+    if (sessions.length === 0) {
+      console.log(i18n.t('prompts.noSessionsFound'));
+      return;
+    }
+
+    const { selectedId } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'selectedId',
+        loop: false,
+        message: i18n.getLanguage() === 'zh' ? '选择要导出的会话:' : 'Select session to export:',
+        choices: [
+          ...sessions.map((s, i) => ({
+            name: `${i % 2 === 0 ? '' : DIM}[${i + 1}] ${s.title} (${s.messageCount} messages, ${formatDate(s.updatedAt)})${i % 2 === 0 ? '' : RESET}`,
+            value: s.id,
+          })),
+          new inquirer.Separator(),
+          { name: i18n.getLanguage() === 'zh' ? '返回' : 'Back', value: '__back__' },
+        ],
+      },
+    ]);
+
+    if (selectedId === '__back__') {
+      return;
+    }
+
+    const session = db.getSession(selectedId);
+    const sessionDir = session?.directory || session?.path;
+
+    // Detect code repo
+    let codeRepoInfo = '';
+    if (sessionDir) {
+      const tempCloud = new CloudManager();
+      const codeRepo = (tempCloud as any).detectCodeRepo(sessionDir);
+      if (codeRepo) {
+        codeRepoInfo = i18n.t('results.cloudDetectCodeRepo', {
+          repo: codeRepo.url,
+          branch: codeRepo.branch,
+          commit: codeRepo.commit,
+        });
+        console.log(`  ✓ ${codeRepoInfo}`);
+      } else {
+        console.log(`  ⚠ ${i18n.t('results.cloudNoCodeRepo')}`);
+      }
+    }
+
+    // Get or create repo
+    const config = cloud.getConfig();
+    let repoUrl = config.repo;
+
+    if (!repoUrl) {
+      const { repoName } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'repoName',
+          message: i18n.t('prompts.enterRepoName'),
+        },
+      ]);
+
+      if (repoName) {
+        repoUrl = `https://github.com/${ghStatus.username}/${repoName}`;
+      }
+    }
+
+    console.log(`\n${i18n.getLanguage() === 'zh' ? '正在导出会话...' : 'Exporting session...'}`);
+
+    const result = await cloud.pushSession(selectedId, repoUrl);
+
+    if (result.success) {
+      console.log(`\n✓ ${i18n.t('results.cloudPushSuccess', { repo: result.repoUrl || '' })}`);
+    } else {
+      console.error(`\n✗ ${i18n.t('results.cloudPushFailed')}: ${result.error}`);
+    }
+  } finally {
+    db.disconnect();
+  }
+}
+
+async function cloudPull(): Promise<void> {
+  const cloud = new CloudManager();
+  const ghStatus = cloud.checkGhCli();
+
+  if (!ghStatus.available || !ghStatus.loggedIn) {
+    console.error(i18n.t('results.cloudNoGhCli'));
+    return;
+  }
+
+  const { repoUrl } = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'repoUrl',
+      message: i18n.t('prompts.enterRepoUrl'),
+    },
+  ]);
+
+  if (!repoUrl) {
+    return;
+  }
+
+  console.log(`\n${i18n.getLanguage() === 'zh' ? '正在获取会话列表...' : 'Fetching session list...'}`);
+
+  const result = await cloud.listCloudSessions(repoUrl);
+
+  if (!result.success || !result.sessions || result.sessions.length === 0) {
+    console.error(i18n.t('results.cloudListFailed'));
+    return;
+  }
+
+  console.log(`\n${i18n.t('results.cloudListSuccess')}\n`);
+  result.sessions.forEach((s, i) => {
+    console.log(`[${i + 1}] ${s.title} (${s.messageCount} messages, exported ${s.exportedAt})${s.hasCodeRepo ? ' [code]' : ''}`);
+  });
+
+  const { selected } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'selected',
+      loop: false,
+      message: i18n.t('prompts.selectCloudSession'),
+      choices: [
+        ...result.sessions.map((s, i) => ({
+          name: `[${i + 1}] ${s.title} (${s.messageCount} messages)${s.hasCodeRepo ? ' [code]' : ''}`,
+          value: s.id,
+        })),
+        new inquirer.Separator(),
+        { name: i18n.getLanguage() === 'zh' ? '返回' : 'Back', value: '__back__' },
+      ],
+    },
+  ]);
+
+  if (selected === '__back__') {
+    return;
+  }
+
+  console.log(`\n${i18n.getLanguage() === 'zh' ? '正在导入会话...' : 'Importing session...'}`);
+
+  const pullResult = await cloud.pullSession(selected, repoUrl);
+
+  if (pullResult.success) {
+    console.log(`\n✓ ${i18n.t('results.cloudPullSuccess', { id: pullResult.newSessionId || '' })}`);
+
+    // Check for code repo
+    if (pullResult.codeRepo) {
+      const { cloneCode } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'cloneCode',
+          message: i18n.t('prompts.confirmCloneCode', { repo: pullResult.codeRepo.url }),
+          default: false,
+        },
+      ]);
+
+      if (cloneCode) {
+        console.log(`\n${i18n.getLanguage() === 'zh' ? '正在 clone 代码...' : 'Cloning code...'}`);
+        const cloneResult = cloud.cloneCodeRepo(pullResult.codeRepo);
+        if (cloneResult.success) {
+          console.log(`✓ ${i18n.t('results.cloudCloneSuccess', { path: cloneResult.path || '' })}`);
+        } else {
+          console.error(`✗ ${i18n.t('results.cloudCloneFailed')}: ${cloneResult.error}`);
+        }
+      }
+    }
+  } else {
+    console.error(`\n✗ ${i18n.t('results.cloudPullFailed')}: ${pullResult.error}`);
+  }
+}
+
+async function cloudList(): Promise<void> {
+  const cloud = new CloudManager();
+  const ghStatus = cloud.checkGhCli();
+
+  if (!ghStatus.available || !ghStatus.loggedIn) {
+    console.error(i18n.t('results.cloudNoGhCli'));
+    return;
+  }
+
+  const { repoUrl } = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'repoUrl',
+      message: i18n.t('prompts.enterRepoUrl'),
+    },
+  ]);
+
+  if (!repoUrl) {
+    return;
+  }
+
+  console.log(`\n${i18n.getLanguage() === 'zh' ? '正在获取会话列表...' : 'Fetching session list...'}`);
+
+  const result = await cloud.listCloudSessions(repoUrl);
+
+  if (!result.success || !result.sessions || result.sessions.length === 0) {
+    console.error(i18n.t('results.cloudListFailed'));
+    return;
+  }
+
+  console.log(`\n${i18n.t('results.cloudListSuccess')}\n`);
+  result.sessions.forEach((s, i) => {
+    console.log(`[${i + 1}] ${s.title} (${s.messageCount} messages, exported ${s.exportedAt})${s.hasCodeRepo ? ' [code]' : ''}`);
+  });
+}
+
+async function cloudSetup(): Promise<void> {
+  const cloud = new CloudManager();
+  const ghStatus = cloud.checkGhCli();
+
+  if (!ghStatus.available || !ghStatus.loggedIn) {
+    console.error(i18n.t('results.cloudNoGhCli'));
+    return;
+  }
+
+  const config = cloud.getConfig();
+
+  const { username } = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'username',
+      message: i18n.t('prompts.cloudSetupUsername'),
+      default: ghStatus.username || config.username || '',
+    },
+  ]);
+
+  const { repo } = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'repo',
+      message: i18n.t('prompts.cloudSetupRepo'),
+      default: config.repo || '',
+    },
+  ]);
+
+  cloud.saveConfig({ username, repo });
+  console.log(`\n✓ ${i18n.t('results.cloudSetupSuccess')}`);
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0];
@@ -647,6 +913,32 @@ async function main(): Promise<void> {
       });
       break;
 
+    case 'cloud':
+      const cloudAction = args[1] || 'help';
+      switch (cloudAction) {
+        case 'push':
+          await cloudPush();
+          break;
+        case 'pull':
+          await cloudPull();
+          break;
+        case 'list':
+          await cloudList();
+          break;
+        case 'setup':
+          await cloudSetup();
+          break;
+        default:
+          console.log(`
+${i18n.getLanguage() === 'zh' ? '云端同步命令' : 'Cloud sync commands'}:
+  cloud push       ${i18n.t('cli.cloudPush')}
+  cloud pull       ${i18n.t('cli.cloudPull')}
+  cloud list       ${i18n.t('cli.cloudList')}
+  cloud setup      ${i18n.t('cli.cloudSetup')}
+          `);
+      }
+      break;
+
     case 'lang':
     case 'language':
       await selectLanguage();
@@ -669,6 +961,7 @@ ${i18n.getLanguage() === 'zh' ? '命令' : 'Commands'}:
   export <session-id>     ${i18n.t('cli.exportCmd')}
   import <file>           ${i18n.t('cli.importCmd')}
   backup [options]        ${i18n.t('cli.backup')}
+  cloud <action>          ${i18n.t('cli.cloud')}
   lang                    ${i18n.getLanguage() === 'zh' ? '切换语言' : 'Switch language'}
   help                    ${i18n.t('cli.help')}
 
@@ -682,6 +975,8 @@ ${i18n.getLanguage() === 'zh' ? '示例' : 'Examples'}:
   ocsm resume abc123
   ocsm export abc123
   ocsm backup --all
+  ocsm cloud push
+  ocsm cloud pull
   ocsm lang
       `);
       break;
