@@ -9,8 +9,10 @@ Session manager for OpenCode. List, search, resume, export and backup sessions f
 - **Any directory**: Manage sessions without navigating to the project directory
 - **i18n**: Chinese and English support
 - **Export**: Save sessions as JSON, Markdown, or plain text
+- **Import**: Restore sessions from JSON (with session tree support)
 - **Backup**: Batch backup all or selected sessions
 - **Cloud Sync**: Push sessions to GitHub private repo, pull and restore anywhere
+- **Session Tree**: Full support for session forks/branches with parent-child relationships
 
 ## Install
 
@@ -151,12 +153,14 @@ ocsm cloud list
 
 When pushing:
 - Sessions are exported to a GitHub private repo
+- If the session has child sessions (forks), you can choose to export the full tree
 - If the session's code is on GitHub, the repo URL is recorded in the JSON
 - If no GitHub repo is detected, only the session is exported
 
 When pulling:
 - Enter the repo URL to fetch sessions
 - Select which session to import
+- Full session tree with parent-child relationships is preserved
 - If a code repo is referenced, option to clone it locally
 
 ## Dependencies
