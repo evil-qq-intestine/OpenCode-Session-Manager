@@ -641,16 +641,16 @@ async function cloudPush(): Promise<void> {
     let includeTree = true;
 
     if (childSessions.length > 0) {
-      console.log(`\n${i18n.getLanguage() === 'zh' ? `检测到 ${childSessions.length} 个子会话` : `Detected ${childSessions.length} child sessions`}`);
+      console.log(`\n${i18n.t('prompts.detectedChildSessions', { count: String(childSessions.length) })}`);
       
       const { exportScope } = await inquirer.prompt([
         {
           type: 'list',
           name: 'exportScope',
-          message: i18n.getLanguage() === 'zh' ? '选择导出范围:' : 'Select export scope:',
+          message: i18n.t('prompts.selectExportScope'),
           choices: [
-            { name: i18n.getLanguage() === 'zh' ? `仅当前会话 (1 个会话)` : `Current session only (1 session)`, value: 'single' },
-            { name: i18n.getLanguage() === 'zh' ? `整个会话树 (${1 + childSessions.length} 个会话)` : `Full tree (${1 + childSessions.length} sessions)`, value: 'tree' },
+            { name: i18n.t('prompts.exportScopeSingle'), value: 'single' },
+            { name: i18n.t('prompts.exportScopeTree', { count: String(1 + childSessions.length) }), value: 'tree' },
           ],
         },
       ]);

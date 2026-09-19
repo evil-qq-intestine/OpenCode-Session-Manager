@@ -31,7 +31,11 @@
     "confirmCloneCode": "检测到代码仓库引用: {repo}\n是否 clone 代码? (y/n):",
     "selectCloudSession": "选择要导入的会话:",
     "cloudSetupUsername": "请输入 GitHub 用户名:",
-    "cloudSetupRepo": "请输入默认仓库名（留空则自动生成）:"
+    "cloudSetupRepo": "请输入默认仓库名（留空则自动生成）:",
+    "selectExportScope": "选择导出范围:",
+    "exportScopeSingle": "仅当前会话 (1 个会话)",
+    "exportScopeTree": "整个会话树 ({count} 个会话)",
+    "detectedChildSessions": "检测到 {count} 个子会话"
   },
   "results": {
     "sessionList": "会话列表",

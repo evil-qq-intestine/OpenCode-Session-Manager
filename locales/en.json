@@ -31,7 +31,11 @@
     "confirmCloneCode": "Detected code repo reference: {repo}\nClone code? (y/n):",
     "selectCloudSession": "Select session to import:",
     "cloudSetupUsername": "Enter GitHub username:",
-    "cloudSetupRepo": "Enter default repo name (leave empty for auto-generate):"
+    "cloudSetupRepo": "Enter default repo name (leave empty for auto-generate):",
+    "selectExportScope": "Select export scope:",
+    "exportScopeSingle": "Current session only (1 session)",
+    "exportScopeTree": "Full tree ({count} sessions)",
+    "detectedChildSessions": "Detected {count} child sessions"
   },
   "results": {
     "sessionList": "Session List",
