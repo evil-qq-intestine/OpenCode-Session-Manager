@@ -57,7 +57,7 @@ export const SessionPickerPlugin = async (ctx: any) => {
           const limit = args.limit || options.maxSessions || 20;
           const search = args.search;
 
-          if (!await db.connect()) {
+          if (!db.connect()) {
             return i18n.t('errors.databaseConnectionFailed');
           }
 
@@ -92,7 +92,7 @@ export const SessionPickerPlugin = async (ctx: any) => {
         async execute(args: any) {
           const { query, session_id } = args;
 
-          if (!await db.connect()) {
+          if (!db.connect()) {
             return i18n.t('errors.databaseConnectionFailed');
           }
 
@@ -144,7 +144,7 @@ export const SessionPickerPlugin = async (ctx: any) => {
         async execute(args: any, context: any) {
           const { session_id, fork } = args;
 
-          if (!await db.connect()) {
+          if (!db.connect()) {
             return i18n.t('errors.databaseConnectionFailed');
           }
 
@@ -178,7 +178,7 @@ export const SessionPickerPlugin = async (ctx: any) => {
         async execute(args: any) {
           const { session_id } = args;
 
-          if (!await db.connect()) {
+          if (!db.connect()) {
             return i18n.t('errors.databaseConnectionFailed');
           }
 
@@ -232,7 +232,7 @@ export const SessionPickerPlugin = async (ctx: any) => {
         async execute(args: any) {
           const { session_id, format, output_path } = args;
 
-          if (!await db.connect()) {
+          if (!db.connect()) {
             return i18n.t('errors.databaseConnectionFailed');
           }
 
@@ -273,7 +273,7 @@ export const SessionPickerPlugin = async (ctx: any) => {
         async execute(args: any) {
           const { session_ids, all, output_path } = args;
 
-          if (!await db.connect()) {
+          if (!db.connect()) {
             return i18n.t('errors.databaseConnectionFailed');
           }
 
@@ -307,45 +307,6 @@ export const SessionPickerPlugin = async (ctx: any) => {
 
             fs.writeFileSync(backupFile, JSON.stringify(backupData, null, 2), 'utf-8');
             return i18n.t('results.backupSuccess', { path: backupFile, count: String(backupData.sessions.length) });
-          } finally {
-            db.disconnect();
-          }
-        },
-      }),
-
-      session_import: tool({
-        description: i18n.t('tools.sessionImportDesc'),
-        args: {
-          file_path: tool.schema.string().describe(i18n.t('tools.filePathParam')),
-        },
-        async execute(args: any) {
-          const { file_path } = args;
-
-          if (!await db.connect()) {
-            return i18n.t('errors.databaseConnectionFailed');
-          }
-
-          try {
-            if (!fs.existsSync(file_path)) {
-              return i18n.t('errors.importFileNotFound', { path: file_path });
-            }
-
-            let data: any;
-            try {
-              const content = fs.readFileSync(file_path, 'utf-8');
-              data = JSON.parse(content);
-            } catch {
-              return i18n.t('errors.importInvalidJson');
-            }
-
-            if (!data.session || !data.messages) {
-              return i18n.t('errors.importMissingSession');
-            }
-
-            const newId = await db.importSession(file_path);
-            return i18n.t('results.importSuccess', { id: newId });
-          } catch (error: any) {
-            return i18n.t('errors.importFailed') + ': ' + error.message;
           } finally {
             db.disconnect();
           }

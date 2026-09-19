@@ -7,6 +7,7 @@ import * as os from 'os';
 import * as readline from 'readline';
 import { execSync } from 'child_process';
 import { OpenCodeDB } from './db.js';
+import { OpenCodeDBWrite } from './db-write.js';
 import { SessionPreview } from './types.js';
 import { i18n, Language, getAvailableLanguages } from './i18n.js';
 
@@ -96,7 +97,7 @@ function displaySessions(sessions: any[], query?: string): void {
 }
 
 async function listSessions(): Promise<void> {
-  if (!await db.connect()) {
+  if (!db.connect()) {
     console.error(i18n.t('errors.databaseConnectionFailed'));
     process.exit(1);
   }
@@ -110,7 +111,7 @@ async function listSessions(): Promise<void> {
 }
 
 async function selectSession(): Promise<void> {
-  if (!await db.connect()) {
+  if (!db.connect()) {
     console.error(i18n.t('errors.databaseConnectionFailed'));
     process.exit(1);
   }
@@ -202,7 +203,7 @@ async function selectSession(): Promise<void> {
 }
 
 async function searchSessions(titleOnly: boolean = false): Promise<void> {
-  if (!await db.connect()) {
+  if (!db.connect()) {
     console.error(i18n.t('errors.databaseConnectionFailed'));
     process.exit(1);
   }
@@ -334,7 +335,7 @@ async function launchSession(sessionId: string): Promise<void> {
 }
 
 async function resumeSession(sessionId: string): Promise<void> {
-  if (!await db.connect()) {
+  if (!db.connect()) {
     console.error(i18n.t('errors.databaseConnectionFailed'));
     process.exit(1);
   }
@@ -448,11 +449,19 @@ async function importSession(filePath: string): Promise<void> {
     return;
   }
 
+  const dbWrite = new OpenCodeDBWrite();
+  if (!dbWrite.connect()) {
+    console.error(i18n.t('errors.databaseConnectionFailed'));
+    return;
+  }
+
   try {
-    const newId = await db.importSession(filePath);
+    const newId = dbWrite.importSession(filePath);
     console.log(`\n${i18n.t('results.importSuccess', { id: newId })}`);
   } catch (error: any) {
     console.error(i18n.t('errors.importFailed'), error.message);
+  } finally {
+    dbWrite.disconnect();
   }
 }
 
@@ -519,7 +528,7 @@ function formatAsText(data: any): string {
 }
 
 async function backupSessions(options: { includeAll: boolean; sessionIds?: string[] }): Promise<void> {
-  if (!await db.connect()) {
+  if (!db.connect()) {
     console.error(i18n.t('errors.databaseConnectionFailed'));
     process.exit(1);
   }
@@ -589,7 +598,7 @@ async function main(): Promise<void> {
         console.error(i18n.t('errors.invalidSessionId'));
         process.exit(1);
       }
-      if (!await db.connect()) {
+      if (!db.connect()) {
         console.error(i18n.t('errors.databaseConnectionFailed'));
         process.exit(1);
       }
@@ -605,7 +614,7 @@ async function main(): Promise<void> {
         console.error(i18n.getLanguage() === 'zh' ? '请提供导入文件路径' : 'Please provide import file path');
         process.exit(1);
       }
-      if (!await db.connect()) {
+      if (!db.connect()) {
         console.error(i18n.t('errors.databaseConnectionFailed'));
         process.exit(1);
       }

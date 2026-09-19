@@ -1,6 +1,6 @@
 {
   "name": "opencode-ocsm",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "OCSM - OpenCode Session Manager. Select and manage sessions from any directory.",
   "type": "module",
   "main": "dist/index.js",
@@ -32,6 +32,8 @@
   "homepage": "https://github.com/evil-qq-intestine/OpenCode-Session-Manager#readme",
   "license": "MIT",
   "dependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "better-sqlite3": "^12.11.1",
     "inquirer": "^9.0.0",
     "sql.js": "^1.14.2"
   },
